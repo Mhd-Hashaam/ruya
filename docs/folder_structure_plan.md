@@ -1,323 +1,234 @@
-# Ruya — Folder Structure Redesign
+# Ruya — Refined Folder Structure Plan
 
-The current codebase grew organically during the Mosiqi→Ruya evolution. Before we start Phase 1 execution, we need a folder structure that **mirrors our architecture** so every engineer decision has a clear home.
+The Ruya codebase is structured around a domain-driven architectural separation. This structure enforces clean, decoupled interfaces between the Next.js React frontend, the Tauri IPC boundary, and the specialized Rust multimedia subsystems.
 
----
-
-## Problems with the Current Structure
-
-### Frontend (`src/`)
-| Issue | Details |
-|---|---|
-| **`playback/` is a dumping ground** | Music, Video, Image, MiniPlayer, Queue — 9 subdirectories with no grouping. Finding the "Music Player" means hunting through a flat list. |
-| **`vrFixer/` is top-level** | VR fixing is a sub-feature of the Editor, not a peer of the entire playback system. |
-| **`editorOverlay/` naming** | "Overlay" implies a floating panel, but the Editor is a full-screen workshop view. |
-| **`shared/` is ambiguous** | Contains hooks, platform bridges, state stores, media utils, and UI components — five totally different concerns in one bag. |
-| **`lib/` has one file** | `utils.ts` alone in a directory. |
-
-### Backend (`src-tauri/src/`)
-| Issue | Details |
-|---|---|
-| **12 flat files** | `mpv_core.rs`, `mpv_commands.rs`, `mpv_d3d11_backend.rs`, `mpv_process.rs`, `mpv_libmpv_probe.rs`, `video_stream.rs`, `library_state.rs`, `commands_library.rs`, `commands_cli.rs`, `cli.rs` — all siblings in one directory. |
-| **No module boundaries** | The LMSS server, Smart Router, Job System, and Cache Manager don't exist yet, but when they do, they'd be more flat files in the same folder. |
-| **No separation of Tauri commands from core logic** | Business logic and IPC handlers are interleaved. |
-
-### Specs & Docs
-| Issue | Details |
-|---|---|
-| **11 spec files in `specs/`** | Mix of finalized architecture, old iterations, ChatGPT evaluations, and discussion notes. Hard to find "the truth." |
-| **Old naming** | Multiple files still say "Mosiqi." |
-| **`docs/` is empty** | Unused. |
+This plan integrates the structural upgrades suggested during architectural review (such as a unified `core` features layer on both frontend and backend to prevent cross-coupling).
 
 ---
 
-## Proposed Structure
-
-> [!IMPORTANT]
-> This restructure is a **rename and move** operation. No logic changes. Every existing file maps to a new location.
-
-### The Complete Tree
+## Core Directory Layout
 
 ```
-ruya/                                    # Root (rename from mosiqi)
-│
-├── package.json                         # name: "ruya"
+ruya/                                    # Root Workspace
+├── package.json                         # Project name: "ruya"
 ├── next.config.ts
 ├── tsconfig.json
 ├── eslint.config.mjs
 ├── .prettierrc.json
+├── README.md
 │
-├── docs/                                # ✦ ALL specifications live here
-│   ├── architecture.md                  # ← specs/Ruya Architecture.md (THE source of truth)
-│   ├── routing-spec.md                  # ← Frontend routing spec
-│   ├── editor-performance.md            # ← Editor perf spec  
-│   ├── discussion.md                    # ← specs/Discussion.md (historical notes)
-│   └── archive/                         # Old iterations, evaluations
+├── docs/                                # ✦ Technical Specifications & Master Roadmaps
+│   ├── architecture.md                  # System architecture, routing tiers, and Z-index layout
+│   ├── folder_structure_plan.md         # This document
+│   ├── master_execution_plan.md         # Highly detailed execution phases and sub-phases
+│   ├── editor-performance.md            # Timeline rendering and proxy spec
+│   ├── discussion.md                    # Discussion transcripts and history
+│   └── archive/                         # Deprecated/historical design specs
 │       ├── chatgpt-evaluation.md
 │       ├── player-analysis.md
-│       ├── video-journey.md
-│       ├── master-plan-v1.md
-│       ├── mvp-build-plan.md
-│       ├── architecture-diagram.md
-│       ├── design.md
-│       └── requirements.md
+│       └── video-journey.md
 │
-├── public/                              # Static assets (icons, fonts, etc.)
+├── public/                              # Static client assets (icons, fonts, fallback posters)
 │
-├── src/                                 # ✦ REACT FRONTEND
-│   ├── app/                             # Next.js app router (minimal — just entry points)
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
+├── src/                                 # ✦ REACT FRONTEND (Next.js App)
+│   ├── app/                             # Next.js App Router Entrypoints
+│   │   ├── layout.tsx                   # Main HTML shell and global font loading
+│   │   ├── page.tsx                     # Entrypoint (mounts Features Shell)
+│   │   └── globals.css                  # Global Tailwind-free, premium variables and resets
 │   │
-│   ├── core/                            # ✦ SHARED INFRASTRUCTURE (replaces shared/ + lib/)
-│   │   ├── state/                       # Zustand stores
-│   │   │   ├── playbackStore.ts         # ← playback/playbackStore.ts
-│   │   │   ├── libraryStore.ts          # ← shared/state/libraryStore.ts
-│   │   │   └── editorStore.ts           # (NEW — future)
+│   ├── core/                            # ✦ FRONTEND CORE INFRASTRUCTURE (Anti-Coupling Layer)
+│   │   ├── contracts/                   # Shared interfaces, message types, and ffprobe schemas
+│   │   │   ├── mediaTypes.ts            # Media format contracts & routing specifications
+│   │   │   ├── jobTypes.ts              # Job payload schemas and socket structures
+│   │   │   └── cacheTypes.ts            # Cache abstraction layer schemas
 │   │   │
-│   │   ├── platform/                    # Tauri IPC bridges
-│   │   │   ├── tauriClient.ts           # ← shared/platform/tauriClient.ts
-│   │   │   ├── mpvClient.ts             # ← shared/platform/mpvClient.ts
-│   │   │   └── videoStreamClient.ts     # ← shared/platform/videoStreamClient.ts
+│   │   ├── platform/                    # Tauri IPC Bridges and Client Wrappers
+│   │   │   ├── tauriClient.ts           # Core Tauri window event listener & command caller
+│   │   │   ├── mpvClient.ts             # Layer 3 MPV communication layer
+│   │   │   └── videoStreamClient.ts     # Layer 2 Local Media Streaming client
 │   │   │
-│   │   ├── hooks/                       # Reusable React hooks
-│   │   │   ├── useFileOpen.ts           # ← shared/hooks/useFileOpen.ts
-│   │   │   ├── useThumbnail.ts          # ← shared/media/useThumbnail.ts
-│   │   │   └── useVolumeBoost.ts        # ← shared/media/useVolumeBoost.ts
+│   │   ├── state/                       # Global Zustand stores (independent of individual features)
+│   │   │   ├── playbackStore.ts         # Central routing and playback state
+│   │   │   ├── libraryStore.ts          # Central media collection state
+│   │   │   └── editorStore.ts           # Global timeline state and active edit-sessions
 │   │   │
-│   │   ├── media/                       # Media detection & routing logic
-│   │   │   └── mediaKind.ts             # ← shared/media/mediaKind.ts
+│   │   ├── hooks/                       # Custom shared hooks (platform-level)
+│   │   │   ├── useFileOpen.ts           # Unified Tauri native dialog file selector hook
+│   │   │   ├── useThumbnail.ts          # Async thumbnail loader Hook
+│   │   │   └── useVolumeBoost.ts        # Soft-gain audio amplifier hook using Web Audio
 │   │   │
-│   │   └── utils.ts                     # ← lib/utils.ts
+│   │   └── utils.ts                     # UI styling, mathematical, and DOM helper utilities
 │   │
-│   ├── ui/                              # ✦ DESIGN SYSTEM (generic, reusable components)
-│   │   ├── Button/
-│   │   ├── IconButton/
-│   │   ├── Slider/
-│   │   ├── VolumeControl/
-│   │   ├── FloatingDock/
-│   │   └── ui.css                       # (NEW — shared component styles)
+│   ├── ui/                              # ✦ REUSABLE DESIGN SYSTEM (Tailored Vanilla CSS)
+│   │   ├── Button/                      # Sleek glassmorphic buttons with micro-animations
+│   │   ├── IconButton/                  # Interactive visual triggers
+│   │   ├── Slider/                      # Audio scrubbers and timeline components
+│   │   ├── VolumeControl/               # Vertical and horizontal expansion bars
+│   │   ├── FloatingDock/                # Premium dock overlay
+│   │   └── ui.css                       # Design system core styling (curated harmonious HSL palettes)
 │   │
-│   └── features/                        # ✦ FEATURE MODULES (the meat of the app)
+│   └── features/                        # ✦ DOMAIN FEATURE MODULES (Modular Shells)
+│       ├── shell/                       # Application Hub Framework (Chrome)
+│       │   ├── ShellLayout/             # Dynamic station routing shell
+│       │   ├── TopBar/                  # Frameless window controls, search bar, and system status
+│       │   ├── SidebarDock/             # Switcher between Library, Player, and Editor views
+│       │   ├── SidebarLibrary/          # Tree navigation list for pinned/local folders
+│       │   ├── BottomNowPlayingBar/     # Mini-player overlay bar for background music
+│       │   └── shell.css                # Shell layout CSS grid styles
 │       │
-│       ├── shell/                       # App chrome — layout, nav, routing
-│       │   ├── ShellLayout/             # ← appShell/ShellLayout/
-│       │   ├── TopBar/                  # ← appShell/TopBar/
-│       │   ├── SidebarDock/             # ← appShell/SidebarDock/
-│       │   ├── SidebarLibrary/          # ← appShell/SidebarLibrary/
-│       │   ├── BottomNowPlayingBar/     # ← appShell/BottomNowPlayingBar/
-│       │   └── shell.css                # ← appShell/appShell.css
+│       ├── library/                     # Media Hub Workspace
+│       │   ├── HomeView/                # Main dashboard view
+│       │   ├── FolderTree/              # Filesystem browser component
+│       │   ├── OpenActions/             # Drop-zone/Quick-Open dashboard panel
+│       │   ├── PlaylistManager/         # Playlists & groups UI
+│       │   ├── RecentItems/             # Scrollable recent history carousel
+│       │   ├── RecentActivities/        # Timeline feed of recent operations
+│       │   ├── RecentActivityCard/      # Sub-component detailing editor exports and jobs
+│       │   ├── ContinueWatchingCard/    # Video resume-playback cards
+│       │   └── library.css              # Library feature styling
 │       │
-│       ├── library/                     # Home screen & media library
-│       │   ├── HomeView/                # ← appShell/HomeView/
-│       │   ├── FolderTree/              # ← mediaLibrary/FolderTree/
-│       │   ├── OpenActions/             # ← mediaLibrary/OpenActions/
-│       │   ├── PlaylistManager/         # ← mediaLibrary/PlaylistManager/
-│       │   ├── RecentItems/             # ← mediaLibrary/RecentItems/
-│       │   ├── RecentActivities/        # ← mediaLibrary/RecentActivities/
-│       │   ├── RecentActivityCard/      # ← mediaLibrary/RecentActivityCard/
-│       │   ├── ContinueWatchingCard/    # ← mediaLibrary/ContinueWatchingCard/
-│       │   └── library.css              # ← mediaLibrary/mediaLibrary.css
+│       ├── player/                      # ✦ ADVANCED PLAYBACK STATIONS
+│       │   ├── shared/                  # Playback Viewport abstraction
+│       │   │   ├── PlaybackViewport/    # Outer view container with active-tier switching
+│       │   │   ├── VideoSurface/        # Layer 1/2 video element canvas container
+│       │   │   ├── MiniPlayer/          # Picture-in-picture style corner card
+│       │   │   └── MinimalVideoControls/# Fadeable overlay controls for cinema playback
+│       │   │
+│       │   ├── music/                   # 🎧 Spotify-Style High-Fidelity Audio Station
+│       │   │   ├── MusicNowPlaying/     # Visualizer, lyric container, and vinyl rotation view
+│       │   │   ├── MusicQueue/          # Upcoming tracks list with drag-and-drop ordering
+│       │   │   └── MusicTrackList/      # Album/folder tracks tabular list
+│       │   │
+│       │   ├── video/                   # 🎬 Cinema-Style Video Station
+│       │   │   └── (future components)  # Specialized subtitle, audio track, and speed panels
+│       │   │
+│       │   ├── image/                   # 🖼️ Lightroom-Style Image Gallery Station
+│       │   │   ├── ImageGalleryGrid/    # Virtualized infinite grid showing image media
+│       │   │   └── ImageFullscreenViewer/# Dynamic zoom, scale, and EXIF viewer
+│       │   │
+│       │   └── player.css               # Playback module layout stylesheet
 │       │
-│       ├── player/                      # ✦ THE THREE PLAYBACK MODES
-│       │   ├── shared/                  # Components used across modes
-│       │   │   ├── PlaybackViewport/    # ← playback/PlaybackViewport/
-│       │   │   ├── VideoSurface/        # ← playback/VideoSurface/
-│       │   │   ├── MiniPlayer/          # ← playback/MiniPlayer/
-│       │   │   └── MinimalVideoControls/ # ← playback/MinimalVideoControls/
-│       │   │
-│       │   ├── music/                   # 🎧 Spotify-style music UI
-│       │   │   ├── MusicNowPlaying/     # ← playback/MusicNowPlaying/
-│       │   │   ├── MusicQueue/          # ← playback/MusicQueue/
-│       │   │   └── MusicTrackList/      # ← playback/MusicTrackList/
-│       │   │
-│       │   ├── video/                   # 🎬 Cinema-style video UI
-│       │   │   └── (future components)
-│       │   │
-│       │   ├── image/                   # 🖼️ Gallery-style image UI
-│       │   │   ├── ImageGalleryGrid/    # ← playback/ImageGalleryGrid/
-│       │   │   └── ImageFullscreenViewer/ # ← playback/ImageFullscreenViewer/
-│       │   │
-│       │   └── player.css               # ← playback/playback.css
-│       │
-│       └── editor/                      # ✦ NLE EDITOR + VR FIXER
-│           ├── EditorPanel/             # ← editorOverlay/EditorPanel/
-│           ├── OperationPicker/         # ← editorOverlay/OperationPicker/
-│           ├── ExportProgress/          # ← editorOverlay/ExportProgress/
-│           ├── PreviewActions/          # ← editorOverlay/PreviewActions/
+│       └── editor/                      # ✦ NON-LINEAR EDITOR & WORKSHOP STATIONS
+│           ├── EditorPanel/             # Workshop view layout containing viewport and timelines
+│           ├── OperationPicker/         # Split, crop, flip, and projection tools selector
+│           ├── ExportProgress/          # Render status tracker panel
+│           ├── PreviewActions/          # Before/after comparative preview viewer
 │           │
-│           ├── vr/                      # VR Fixer (was top-level vrFixer/)
-│           │   ├── Pipeline/            # ← vrFixer/Pipeline/
-│           │   ├── CandidatePreviewGrid/ # ← vrFixer/CandidatePreviewGrid/
-│           │   └── ApprovalFooter/      # ← vrFixer/ApprovalFooter/
+│           ├── vr/                      # 🕶️ VR Projection Fixer Module
+│           │   ├── Pipeline/            # Node-based pipeline graph builder UI
+│           │   ├── CandidatePreviewGrid/# Multi-preview render comparisons panel
+│           │   └── ApprovalFooter/      # Export configuration and final save footer
 │           │
-│           ├── timeline/                # (NEW — future: canvas timeline, sprites)
-│           └── editor.css               # ← editorOverlay/editorOverlay.css
+│           ├── timeline/                # Virtualized timeline canvas
+│           └── editor.css               # Editor styles (timeline, scrubbers, timelines)
 │
-├── src-tauri/                           # ✦ RUST BACKEND
-│   ├── Cargo.toml                       # name: "ruya"
-│   ├── tauri.conf.json
+├── src-tauri/                           # ✦ RUST MULTIMEDIA BACKEND
+│   ├── Cargo.toml                       # Binary package name: "ruya"
+│   ├── tauri.conf.json                  # Application setup & capability declaration
 │   ├── build.rs
-│   ├── capabilities/
-│   ├── icons/
+│   ├── capabilities/                    # Tauri V2 capability declarations
+│   ├── icons/                           # Native OS application icons
 │   │
 │   └── src/
-│       ├── main.rs                      # Entry point (unchanged)
-│       ├── lib.rs                       # Plugin registration & Tauri setup
+│       ├── main.rs                      # Standard Tauri main entrypoint
+│       ├── lib.rs                       # Plugin registrations, Tauri builder setup, state init
 │       │
-│       ├── commands/                    # ✦ TAURI IPC COMMAND HANDLERS (thin layer)
+│       ├── core/                        # ✦ RUST BACKEND CORE (Shared Frameworks)
 │       │   ├── mod.rs
-│       │   ├── cli.rs                   # ← commands_cli.rs + cli.rs
-│       │   ├── library.rs              # ← commands_library.rs
-│       │   ├── player.rs               # (NEW — mpv play/pause/seek commands)
-│       │   └── jobs.rs                  # (NEW — future job system commands)
+│       │   ├── error.rs                 # Comprehensive Error type (converts to string over IPC)
+│       │   ├── types.rs                 # Shared engine definitions (MediaKind, JobStatus)
+│       │   └── system.rs                # Windows-specific system diagnostics, DPI, monitor profile
 │       │
-│       ├── router/                      # ✦ SMART ROUTER (Layer routing logic)
+│       ├── commands/                    # ✦ TAURI IPC ENTRY POINTS (Thin Handler Layer)
 │       │   ├── mod.rs
-│       │   └── probe.rs                 # ffprobe integration, codec detection
-│       │                                #   ← mpv_libmpv_probe.rs
+│       │   ├── cli.rs                   # Shell arguments and deep-link hooks
+│       │   ├── library.rs               # Disk directory scanning commands
+│       │   ├── player.rs                # MPV interaction hooks and state manipulation
+│       │   └── jobs.rs                  # Job queue control commands (cancel, pause, retry)
+│       │
+│       ├── router/                      # ✦ THE SMART MEDIA ROUTER (Media Profiler)
+│       │   ├── mod.rs
+│       │   ├── probe.rs                 # Raw ffprobe execution & JSON format extractor
+│       │   └── scorer.rs                # Matrix performance scoring engine
 │       │
 │       ├── lmss/                        # ✦ LOCAL MEDIA STREAMING SERVER (Layer 2)
 │       │   ├── mod.rs
-│       │   ├── server.rs                # axum HTTP server, range requests
-│       │   │                            #   ← video_stream.rs
-│       │   └── remuxer.rs               # (NEW — ffmpeg remux subprocess)
+│       │   ├── server.rs                # Axum webserver (range requests, stream lifecycle)
+│       │   ├── remuxer.rs               # FFmpeg child process manager (pipe streaming)
+│       │   └── cancellation.rs          # Stream guard (partial-read cleanup & SIGTERM handler)
 │       │
-│       ├── mpv/                         # ✦ NATIVE MPV ENGINE (Layer 3)
+│       ├── mpv/                         # ✦ NATIVE WIN32 ENGINE (Layer 3 MPV)
 │       │   ├── mod.rs
-│       │   ├── core.rs                  # ← mpv_core.rs
-│       │   ├── commands.rs              # ← mpv_commands.rs
-│       │   ├── process.rs              # ← mpv_process.rs
-│       │   └── d3d11_backend.rs         # ← mpv_d3d11_backend.rs
+│       │   ├── core.rs                  # Tauri libmpv initialization & event bus
+│       │   ├── commands.rs              # Raw command bindings to libmpv instance
+│       │   ├── process.rs               # Win32 lifecycle controller for mpv process
+│       │   └── d3d11_backend.rs         # Direct3D11 swapchain renderer pipeline
 │       │
-│       ├── jobs/                        # ✦ UNIVERSAL JOB SYSTEM (future)
+│       ├── jobs/                        # ✦ UNIVERSAL ASYNCHRONOUS JOB SYSTEM
 │       │   ├── mod.rs
-│       │   ├── queue.rs                 # Job queue, state machine
-│       │   ├── worker.rs               # FFmpeg worker pool
-│       │   └── process_guard.rs         # Windows Job Objects, zombie prevention
+│       │   ├── queue.rs                 # State machine queue manager
+│       │   ├── actor.rs                 # Actix-like safe async message handler (no mutable state)
+│       │   ├── serialization.rs         # SQLite/JSON job state recovery engine
+│       │   └── process_guard.rs         # Windows Job Object bindings for sub-process tree safety
 │       │
-│       ├── editor/                      # ✦ EDITOR BACKEND (future)
+│       ├── editor/                      # ✦ NON-LINEAR EDITOR & PIPELINES BACKEND
 │       │   ├── mod.rs
-│       │   ├── proxy.rs                 # Proxy clip generation
-│       │   ├── thumbnails.rs            # Sprite sheet / thumbnail pyramids
-│       │   └── vr_pipeline.rs           # VR guess-work filter pipeline
+│       │   ├── proxy.rs                 # Async proxy file generator (FFmpeg scaled output)
+│       │   ├── thumbnails.rs            # Sprite sheet renderer & coordinate mapper
+│       │   └── vr_pipeline.rs           # Projection pipeline parser (serializable graphs)
 │       │
-│       ├── library/                     # ✦ MEDIA LIBRARY STATE
+│       ├── library/                     # ✦ CLIENT LIBRARY & RECENT ITEMS STATE
 │       │   ├── mod.rs
-│       │   └── state.rs                 # ← library_state.rs
+│       │   └── state.rs                 # Pinned folders & activity persistence manager
 │       │
-│       └── cache/                       # ✦ CACHE BUDGET MANAGER (future)
+│       └── cache/                       # ✦ STORAGE BUDGET MANAGER
 │           ├── mod.rs
-│           └── budget.rs                # LRU eviction, %TEMP%/ruya_cache
+│           └── budget.rs                # LRU disk inspector & temporary file cleanup scheduler
 │
-└── scripts/                             # Build helpers, dev utilities
+└── scripts/                             # Development and production build runner hooks
 ```
 
 ---
 
-## Architecture ↔ Folder Mapping
+## Mapping Architecture ➔ Directory Layout
 
-This table shows how every architectural subsystem from [architecture.md](file:///c:/Users/mhdha_zeezxk7/Downloads/Portfolio/mosiqi/specs/Ruya%20Architecture.md) maps to a specific directory:
+The core components of the Ruya Engine correspond to specific directories:
 
-| Architecture Concept | Frontend Location | Backend Location |
-|---|---|---|
-| **Smart Router** | `core/media/mediaKind.ts` | `src-tauri/src/router/` |
-| **Layer 1 (HTML5)** | `features/player/shared/VideoSurface/` | — (browser-native) |
-| **Layer 2 (LMSS)** | `core/platform/videoStreamClient.ts` | `src-tauri/src/lmss/` |
-| **Layer 3 (Native mpv)** | `core/platform/mpvClient.ts` | `src-tauri/src/mpv/` |
-| **Music Player UI** | `features/player/music/` | — |
-| **Video Player UI** | `features/player/video/` | — |
-| **Image Gallery UI** | `features/player/image/` | — |
-| **Media-Aware Router** | `features/shell/ShellLayout/` | — |
-| **NLE Editor** | `features/editor/` | `src-tauri/src/editor/` |
-| **VR Fixer** | `features/editor/vr/` | `src-tauri/src/editor/vr_pipeline.rs` |
-| **Universal Job System** | — (events only) | `src-tauri/src/jobs/` |
-| **Cache Budget** | — | `src-tauri/src/cache/` |
-| **Media Library** | `features/library/` | `src-tauri/src/library/` |
-
----
-
-## Migration Map (Current → New)
-
-> [!NOTE]
-> Every existing file has a 1:1 destination. Nothing is deleted — only moved and renamed.
-
-### Frontend Files
-
-| Current Path | New Path |
-|---|---|
-| `src/appShell/ShellLayout/` | `src/features/shell/ShellLayout/` |
-| `src/appShell/TopBar/` | `src/features/shell/TopBar/` |
-| `src/appShell/SidebarDock/` | `src/features/shell/SidebarDock/` |
-| `src/appShell/SidebarLibrary/` | `src/features/shell/SidebarLibrary/` |
-| `src/appShell/BottomNowPlayingBar/` | `src/features/shell/BottomNowPlayingBar/` |
-| `src/appShell/HomeView/` | `src/features/library/HomeView/` |
-| `src/appShell/appShell.css` | `src/features/shell/shell.css` |
-| `src/playback/PlaybackViewport/` | `src/features/player/shared/PlaybackViewport/` |
-| `src/playback/VideoSurface/` | `src/features/player/shared/VideoSurface/` |
-| `src/playback/MiniPlayer/` | `src/features/player/shared/MiniPlayer/` |
-| `src/playback/MinimalVideoControls/` | `src/features/player/shared/MinimalVideoControls/` |
-| `src/playback/MusicNowPlaying/` | `src/features/player/music/MusicNowPlaying/` |
-| `src/playback/MusicQueue/` | `src/features/player/music/MusicQueue/` |
-| `src/playback/MusicTrackList/` | `src/features/player/music/MusicTrackList/` |
-| `src/playback/ImageGalleryGrid/` | `src/features/player/image/ImageGalleryGrid/` |
-| `src/playback/ImageFullscreenViewer/` | `src/features/player/image/ImageFullscreenViewer/` |
-| `src/playback/playbackStore.ts` | `src/core/state/playbackStore.ts` |
-| `src/playback/playback.css` | `src/features/player/player.css` |
-| `src/editorOverlay/*` | `src/features/editor/*` |
-| `src/editorOverlay/editorOverlay.css` | `src/features/editor/editor.css` |
-| `src/vrFixer/Pipeline/` | `src/features/editor/vr/Pipeline/` |
-| `src/vrFixer/CandidatePreviewGrid/` | `src/features/editor/vr/CandidatePreviewGrid/` |
-| `src/vrFixer/ApprovalFooter/` | `src/features/editor/vr/ApprovalFooter/` |
-| `src/vrFixer/vrFixer.css` | `src/features/editor/vr/vr.css` |
-| `src/mediaLibrary/*` | `src/features/library/*` |
-| `src/shared/hooks/` | `src/core/hooks/` |
-| `src/shared/media/` | `src/core/media/` + `src/core/hooks/` |
-| `src/shared/platform/` | `src/core/platform/` |
-| `src/shared/state/` | `src/core/state/` |
-| `src/shared/ui/*` | `src/ui/*` |
-| `src/lib/utils.ts` | `src/core/utils.ts` |
-
-### Backend Files
-
-| Current Path | New Path |
-|---|---|
-| `src-tauri/src/mpv_core.rs` | `src-tauri/src/mpv/core.rs` |
-| `src-tauri/src/mpv_commands.rs` | `src-tauri/src/mpv/commands.rs` |
-| `src-tauri/src/mpv_process.rs` | `src-tauri/src/mpv/process.rs` |
-| `src-tauri/src/mpv_d3d11_backend.rs` | `src-tauri/src/mpv/d3d11_backend.rs` |
-| `src-tauri/src/mpv_libmpv_probe.rs` | `src-tauri/src/router/probe.rs` |
-| `src-tauri/src/video_stream.rs` | `src-tauri/src/lmss/server.rs` |
-| `src-tauri/src/library_state.rs` | `src-tauri/src/library/state.rs` |
-| `src-tauri/src/commands_library.rs` | `src-tauri/src/commands/library.rs` |
-| `src-tauri/src/commands_cli.rs` + `cli.rs` | `src-tauri/src/commands/cli.rs` |
-
-### Specs Consolidation
-
-| Current Path | New Path |
-|---|---|
-| `specs/Ruya Architecture.md` | `docs/architecture.md` |
-| `specs/Discussion.md` | `docs/discussion.md` |
-| `specs/design.md` | `docs/archive/design.md` |
-| `specs/requirements.md` | `docs/archive/requirements.md` |
-| `specs/mosiqi_master_plan.md` | `docs/archive/master-plan-v1.md` |
-| `specs/mosiqi_architecture_diagram.md` | `docs/archive/architecture-diagram.md` |
-| `specs/mosiqi_editor_performance_spec.md` | `docs/editor-performance.md` |
-| `specs/architecture_chatgpt_evaluation.md` | `docs/archive/chatgpt-evaluation.md` |
-| `specs/player_architecture_analysis.md` | `docs/archive/player-analysis.md` |
-| `specs/video_architecture_journey.md` | `docs/archive/video-journey.md` |
-| `specs/mosiqi_mvp_build_e79f93b8.plan.md` | `docs/archive/mvp-build-plan.md` |
+| Subsystem Component | UI Feature Layer | Rust Backend Layer | Core Role |
+|---|---|---|---|
+| **Capability Profiler** | — | `src-tauri/src/router/scorer.rs` | Probes HW capabilities (DXVA2, HDR) and scores formats |
+| **Media Classifier** | `src/core/media/` | `src-tauri/src/router/probe.rs` | Runs `ffprobe` and parses tracks, subtitles, and codecs |
+| **Smart Router** | `src/core/state/playbackStore.ts` | `src-tauri/src/router/mod.rs` | Directs inputs dynamically through the Tri-Layer decision engine |
+| **Layer 1: HTML5** | `src/features/player/shared/VideoSurface/` | — | Direct playback of standard browser formats |
+| **Layer 2: LMSS** | `src/core/platform/videoStreamClient.ts` | `src-tauri/src/lmss/` | Remuxes unsupported containers (e.g. MKV) into Fragmented MP4 |
+| **Layer 3: Native MPV** | `src/core/platform/mpvClient.ts` | `src-tauri/src/mpv/` | Renders high-end formats (HEVC, 10-bit HDR, styled subtitles) |
+| **Music Station** | `src/features/player/music/` | — | Spotify-like gapless playback UI |
+| **Image Station** | `src/features/player/image/` | `src-tauri/src/editor/proxy.rs` | Renders, caches, and navigates local and RAW image files |
+| **Video Station** | `src/features/player/video/` | — | Cinema-style flat and panoramic VR video player UI |
+| **Universal Job System**| `src/features/library/RecentActivities/` | `src-tauri/src/jobs/` | Handles queue state, persistence, worker allocation, and crash safety |
+| **NLE Editor Backend** | `src/features/editor/` | `src-tauri/src/editor/` | Manages timeline scrubbing, proxy asset creation, and sprite maps |
+| **VR Projection Fixer** | `src/features/editor/vr/` | `src-tauri/src/editor/vr_pipeline.rs` | Runs test grids of VR filters on proxies using serializable graphs |
+| **Cache Budget Manager**| — | `src-tauri/src/cache/` | Implements LRU garbage collection inside `%TEMP%/ruya_cache` |
 
 ---
 
-## Naming Rename: Mosiqi → Ruya
+## Safe Migration Strategy (File-by-File Moves)
 
-These files need internal content updates:
+No logic changes are made during Phase 0; this is purely a directory reorganization to ensure compile-time isolation of features.
 
-| File | Change |
-|---|---|
-| `package.json` | `"name": "mosiqi"` → `"name": "ruya"` |
-| `Cargo.toml` | `name = "app"` → `name = "ruya"` |
-| `tauri.conf.json` | Update identifier and product name |
-| All spec files | Find/replace "Mosiqi" → "Ruya" |
+### 1. Frontend Relocations
+* Move UI components from `src/appShell/` to `src/features/shell/` and `src/features/library/` according to the tree.
+* Move `src/playback/` components to `src/features/player/` subdirectories.
+* Move stores (`src/playback/playbackStore.ts` and `src/shared/state/libraryStore.ts`) to `src/core/state/`.
+* Group platform clients from `src/shared/platform/` into `src/core/platform/`.
+* Gather shared hooks from `src/shared/hooks/` and media helpers from `src/shared/media/` into `src/core/hooks/` and `src/core/media/`.
+
+### 2. Backend Relocations
+* Rename `src-tauri/src/mpv_*` files and group them inside the `src-tauri/src/mpv/` directory.
+* Move `src-tauri/src/mpv_libmpv_probe.rs` to `src-tauri/src/router/probe.rs`.
+* Move `src-tauri/src/video_stream.rs` to `src-tauri/src/lmss/server.rs`.
+* Move `src-tauri/src/library_state.rs` to `src-tauri/src/library/state.rs`.
+* Gather command handlers from `src-tauri/src/commands_*` and package them into `src-tauri/src/commands/`.
+
+### 3. Specifications Relocations
+* Consolidate specs from `specs/` into the `docs/` tree to establish a single source of truth for the codebase.
