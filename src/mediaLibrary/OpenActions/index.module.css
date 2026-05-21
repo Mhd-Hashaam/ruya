@@ -1,0 +1,34 @@
+.openBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-10);
+  background: var(--color-brand-primary);
+  color: var(--color-app-background);
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--motion-duration-normal) var(--motion-easing-standard);
+  box-shadow: 0 4px 12px oklch(0.78 0.12 65 / 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.openBtn:hover {
+  background: var(--color-brand-primary_hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px oklch(0.78 0.12 65 / 0.45);
+}
+
+.openBtn:active {
+  background: var(--color-brand-primary_active);
+  transform: translateY(0);
+}
+
+.icon {
+  font-size: 20px;
+  line-height: 1;
+}
+

@@ -1,0 +1,16 @@
+[profile.dev]
+# Don't generate full debug symbols for dependencies — biggest space saver.
+# Your own code (src-tauri/src/) still gets line numbers for readable errors.
+split-debuginfo = "unpacked"
+debug = "line-tables-only"
+
+# Disable incremental compilation.
+# Incremental speeds up rebuilds but caches 1-2 GB of intermediate state.
+# For a small project like this, a full rebuild is fast enough without it.
+incremental = false
+
+[profile.dev.package."*"]
+# Dependencies get zero debug info — they don't need it for your workflow.
+# This alone cuts target/ size by ~40-60%.
+debug = false
+opt-level = 1

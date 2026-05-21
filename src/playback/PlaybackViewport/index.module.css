@@ -1,0 +1,231 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+/* ── Video wrap — shared by native and fallback paths ── */
+.videoWrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  /* background: transparent; // Removed solid black to allow M2 layer to show through */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.m2Surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Native <video> element */
+.videoElement {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+/* libmpv SW fallback canvas */
+.canvas {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+.pipOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  z-index: 10;
+}
+
+/* ── Fallback controls (libmpv path) ── */
+.fallbackControls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+}
+
+.backBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  transition: color var(--motion-duration-fast);
+}
+
+.backBtn:hover {
+  color: #fff;
+}
+
+.fallbackTitle {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fallbackBtns {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fallbackBtn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: var(--radius-xs);
+  color: rgba(255, 255, 255, 0.85);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background var(--motion-duration-fast);
+}
+
+.fallbackBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.fallbackVolume {
+  width: 80px;
+  accent-color: var(--color-brand-primary);
+  cursor: pointer;
+}
+
+/* ── Audio view ── */
+.audioView {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  background: var(--color-surface-1);
+  padding: var(--space-8);
+}
+
+.audioArt {
+  width: 180px;
+  height: 180px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-surface-3) 0%, var(--color-surface-2) 100%);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64px;
+  color: var(--color-brand-primary);
+  box-shadow: var(--shadow-elevation-2);
+}
+
+.audioInfo {
+  text-align: center;
+}
+
+.audioTitle {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: block;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audioControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.audioBtn {
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background var(--motion-duration-fast);
+}
+
+.audioBtn:hover {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+
+.audioVolume {
+  width: 120px;
+  accent-color: var(--color-brand-primary);
+  cursor: pointer;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background: var(--color-surface-1);
+}
+
+.emptyIcon {
+  font-size: 56px;
+  opacity: 0.15;
+}
+
+.emptyText {
+  font-size: var(--font-size-md);
+  color: var(--color-text-tertiary);
+}
+
+/* ── Error ── */
+.error {
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-status-danger);
+  background: var(--color-surface-2);
+  border-top: 1px solid var(--color-border-subtle);
+}

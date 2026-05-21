@@ -1,0 +1,106 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Mute button */
+.muteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 120ms, color 120ms;
+}
+
+.muteBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Track */
+.track {
+  position: relative;
+  width: 0;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: width 200ms var(--motion-easing-standard), opacity 200ms var(--motion-easing-standard);
+}
+
+.root:hover .track {
+  width: 80px;
+  opacity: 1;
+}
+
+/* Rail (full width, dim) */
+.track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+}
+
+/* Fill — always white regardless of boost level */
+.track::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: var(--fill, 0%);
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+/* No special boost styling — keep design consistent */
+.trackBoosted::after {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.input {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+  z-index: 1;
+}
+
+/* Percentage label */
+.label {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 32px;
+  text-align: right;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 200ms var(--motion-easing-standard);
+  pointer-events: none;
+}
+
+.root:hover .label {
+  opacity: 1;
+}
+
+/* Boosted label — slightly brighter but same color family */
+.labelBoosted {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
