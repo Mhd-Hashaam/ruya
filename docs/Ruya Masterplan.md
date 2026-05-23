@@ -1,6 +1,6 @@
 # Ruya Master Execution Plan: Refining the Multimedia Engine
 
-This document defines the highly detailed, step-by-step master execution roadmap for the Ruya Multimedia Engine (formerly Mosiqi). It has been upgraded to incorporate the rigorous structural and architectural suggestions provided during expert engineering reviews.
+This document defines the highly detailed, step-by-step master execution roadmap for the Ruya Multimedia Engine. It has been upgraded to incorporate the rigorous structural and architectural suggestions provided during expert engineering reviews.
 
 If the conversation context is ever lost, this plan provides 100% of the context required for a new agent to pick up work instantly. Each phase is decomposed into logical, highly manageable, and independently testable sub-phases with concrete verification plans.
 
@@ -22,7 +22,7 @@ If the conversation context is ever lost, this plan provides 100% of the context
 **Verify Output:** The project builds and executes successfully. Both Tauri and React compile without warnings in the new structure (`cargo check` and `npm run build` succeed).
 
 ### Sub-Phase 0.1: Directory Migration & Namespace Transition
-*   **Mechanism:** Execute file moves according to the mapping defined in `docs/folder_structure_plan.md`. Rename all occurrences of `mosiqi` to `ruya` in the backend cargo configs, manifest names, frontend package files, and config files.
+*   **Mechanism:** Execute file moves according to the mapping defined in `docs/folder_structure_plan.md`. Rename all legacy package-name references to `ruya` in the backend cargo configs, manifest names, frontend package files, and config files.
 *   **Checklist:**
     1.  [ ] Rename the root project folder to `ruya`.
     2.  [ ] Update `package.json` package name to `"ruya"`.

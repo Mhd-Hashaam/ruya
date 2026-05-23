@@ -1,56 +1,56 @@
-# Ruya Engine — Master Task List
+﻿# Ruya Engine - Master Task List
 
 This is the definitive, step-by-step master checklist for the implementation of the Ruya Multimedia Engine. It decomposes the phases of the `Ruya Masterplan.md` into highly granular, actionable, and testable checklist items.
 
 ---
 
-## ── Phase 0: Foundation & Reorganization ──
+## Phase 0: Foundation & Reorganization
 **Goal:** Align directory boundaries, update package namespaces, and establish the core shared contract boundaries on both the frontend and backend.
 
-- `[ ]` **Sub-Phase 0.1: Directory Migration**
-  - `[ ]` Physically move frontend UI components to `src/features/shell/`, `src/features/library/`, and `src/features/player/` as defined in the folder plan.
-  - `[ ]` Consolidate global state stores into `src/core/state/`.
-  - `[ ]` Consolidate platform-specific IPC bridges into `src/core/platform/`.
-  - `[ ]` Group reusable utility helpers and platform hooks into `src/core/hooks/` and `src/core/media/`.
-  - `[ ]` Relocate Rust backend files: gather `mpv_*` controllers into `src-tauri/src/mpv/`, `video_stream.rs` to `src-tauri/src/lmss/server.rs`, and `library_state.rs` to `src-tauri/src/library/state.rs`.
-  - `[ ]` Consolidate and clean up specifications under `docs/` and historical files into `docs/archive/`.
+- `[x]` **Sub-Phase 0.1: Directory Migration**
+  - `[x]` Physically move frontend UI components to `src/features/shell/`, `src/features/library/`, and `src/features/player/` as defined in the folder plan.
+  - `[x]` Consolidate global state stores into `src/core/state/`.
+  - `[x]` Consolidate platform-specific IPC bridges into `src/core/platform/`.
+  - `[x]` Group reusable utility helpers and platform hooks into `src/core/hooks/` and `src/core/media/`.
+  - `[x]` Relocate Rust backend files: gather `mpv_*` controllers into `src-tauri/src/mpv/`, `video_stream.rs` to `src-tauri/src/lmss/server.rs`, and `library_state.rs` to `src-tauri/src/library/state.rs`.
+  - `[x]` Consolidate and clean up specifications under `docs/` and historical files into `docs/archive/`.
 
-- `[ ]` **Sub-Phase 0.2: Namespace Renaming (Mosiqi ➔ Ruya)**
-  - `[ ]` Edit `package.json` to change the package name to `"ruya"`.
-  - `[ ]` Update `src-tauri/Cargo.toml` to set the binary crate name to `"ruya"`.
-  - `[ ]` Modify `tauri.conf.json` to set `productName` to `"Ruya"` and update the package identifier to `com.ruya.app`.
-  - `[ ]` Do a global find-and-replace for internal documentation and comments, updating "Mosiqi" to "Ruya".
+- `[x]` **Sub-Phase 0.2: Namespace Renaming (Legacy Name to Ruya)**
+  - `[x]` Edit `package.json` to change the package name to `"ruya"`.
+  - `[x]` Update `src-tauri/Cargo.toml` to set the binary crate name to `"ruya"`.
+  - `[x]` Modify `tauri.conf.json` to set `productName` to `"Ruya"` and update the package identifier to `com.ruya.app`.
+  - `[x]` Do a global find-and-replace for internal documentation and comments, updating legacy project-name references to Ruya.
 
-- `[ ]` **Sub-Phase 0.3: Core Contracts & Anti-Coupling Architecture**
-  - `[ ]` Create `src/core/contracts/mediaTypes.ts` for media format interface contracts.
-  - `[ ]` Create `src/core/contracts/jobTypes.ts` for frontend-backend job status payload schemas.
-  - `[ ]` Build `src-tauri/src/core/mod.rs`, `src-tauri/src/core/types.rs`, and `src-tauri/src/core/error.rs` to support unified, JSON-serializable Rust errors.
-  - `[ ]` **Verification:** Run `npm run build` and `cargo check` to verify the refactoring.
+- `[x]` **Sub-Phase 0.3: Core Contracts & Anti-Coupling Architecture**
+  - `[x]` Create `src/core/contracts/mediaTypes.ts` for media format interface contracts.
+  - `[x]` Create `src/core/contracts/jobTypes.ts` for frontend-backend job status payload schemas.
+  - `[x]` Build `src-tauri/src/core/mod.rs`, `src-tauri/src/core/types.rs`, and `src-tauri/src/core/error.rs` to support unified, JSON-serializable Rust errors.
+  - `[x]` **Verification:** Run `npm run build` and `cargo check` to verify the refactoring.
 
 ---
 
-## ── Phase 1: Local Media Streaming Server (LMSS) ──
+## Phase 1: Local Media Streaming Server (LMSS)
 **Goal:** Implement the Axum range-request streaming server and the dynamic FFmpeg fragmented MP4 copy pipelines with robust cancellation hooks.
 
-- `[ ]` **Sub-Phase 1.1: Axum HTTP Server Setup**
-  - `[ ]` Initialize Axum server and set up Tokio runtime listening on a loopback ephemeral port (`127.0.0.1:0`) in `src-tauri/src/lmss/server.rs`.
-  - `[ ]` Register the bound server port in Tauri's global app state during backend startup.
-  - `[ ]` Implement HTTP range-requests parsing to handle browser-directed media slice queries.
+- `[x]` **Sub-Phase 1.1: Axum HTTP Server Setup**
+  - `[x]` Initialize Axum server and set up Tokio runtime listening on a loopback ephemeral port (`127.0.0.1:0`) in `src-tauri/src/lmss/server.rs`.
+  - `[x]` Register the bound server port in Tauri's global app state during backend startup.
+  - `[x]` Implement HTTP range-requests parsing to handle browser-directed media slice queries.
 
-- `[ ]` **Sub-Phase 1.2: FFmpeg Fragmented Remuxing Pipeline**
-  - `[ ]` Implement asynchronous subprocess execution in `src-tauri/src/lmss/remuxer.rs` using `tokio::process::Command`.
-  - `[ ]` Configure FFmpeg remuxing arguments: `-i <PATH> -c:v copy -c:a aac -f mp4 -movflags frag_keyframe+empty_moov+faststart pipe:1`.
-  - `[ ]` Implement chunked streaming from FFmpeg stdout to write frames directly into the Axum HTTP response stream.
+- `[x]` **Sub-Phase 1.2: FFmpeg Fragmented Remuxing Pipeline**
+  - `[x]` Implement asynchronous subprocess execution in `src-tauri/src/lmss/remuxer.rs` using `tokio::process::Command`.
+  - `[x]` Configure FFmpeg remuxing arguments: `-i <PATH> -c:v copy -c:a aac -f mp4 -movflags frag_keyframe+empty_moov+faststart pipe:1`.
+  - `[x]` Implement chunked streaming from FFmpeg stdout to write frames directly into the Axum HTTP response stream.
 
-- `[ ]` **Sub-Phase 1.3: Stream Interruption & Cancellation Guard**
-  - `[ ]` Create the connection monitor in `src-tauri/src/lmss/cancellation.rs` to detect browser TCP connection closures.
-  - `[ ]` Implement Tokios' `CancellationToken` patterns to instantly shut down active remux processes on connection severing.
-  - `[ ]` Write cleanup routines to release operating system handles and flush active I/O pipes.
-  - `[ ]` **Verification:** Stream an MKV file to a standard `<video>` player in a browser. Trigger rapid seeks and verify that background sub-processes terminate instantly without leaks.
+- `[x]` **Sub-Phase 1.3: Stream Interruption & Cancellation Guard**
+  - `[x]` Create the connection monitor in `src-tauri/src/lmss/cancellation.rs` to detect browser TCP connection closures.
+  - `[x]` Implement Tokios' `CancellationToken` patterns to instantly shut down active remux processes on connection severing.
+  - `[x]` Write cleanup routines to release operating system handles and flush active I/O pipes.
+  - `[x]` **Verification:** Stream an MKV file to a standard `<video>` player in a browser. Trigger rapid seeks and verify that background sub-processes terminate instantly without leaks.
 
 ---
 
-## ── Phase 2: The Smart Media Router & Scorer Matrix ──
+## Phase 2: The Smart Media Router & Scorer Matrix
 **Goal:** Build the ffprobe-driven media analyzer, system profiling diagnostics, and the dynamic performance routing scorer matrix.
 
 - `[ ]` **Sub-Phase 2.1: Codec Inspection & System Profiling**
@@ -69,22 +69,22 @@ This is the definitive, step-by-step master checklist for the implementation of 
 
 ---
 
-## ── Phase 3: The Three Playback Stations ──
+## Phase 3: The Three Playback Stations
 **Goal:** Build beautiful, responsive, and custom interfaces for Music, Videos, and Images. Create the Web Audio gapless engine and lay standard flat-video structures for VR.
 
-- `[ ]` **Sub-Phase 3.1: 🎧 The Music Player Station (Web Audio API Engine)**
+- `[ ]` **Sub-Phase 3.1: The Music Player Station (Web Audio API Engine)**
   - `[ ]` Build the Spotify-vibe Now Playing screen, track list views, and queue managers inside `src/features/player/music/`.
   - `[ ]` Create `src/features/player/music/audioEngine.ts` utilizing browser `AudioContext` controls.
   - `[ ]` Implement double-buffering using two parallel `AudioBufferSourceNode` blocks to schedule gapless crossovers.
   - `[ ]` Integrate pre-fetching: decode the next song file into the standby buffer 5 seconds before the current active source node terminates.
   - `[ ]` Draw visualizers and extract cover art vectors using Rust metadata commands.
 
-- `[ ]` **Sub-Phase 3.2: 🖼️ The Image Gallery Station (RAW & HEIC Engine)**
+- `[ ]` **Sub-Phase 3.2: The Image Gallery Station (RAW & HEIC Engine)**
   - `[ ]` Create `src-tauri/src/editor/proxy.rs` raw image translation methods (using `libraw` or `image` crates).
   - `[ ]` Expose a custom Tauri asset loading protocol (`ruya://thumbnail?path=...`) to safely stream WebP thumbnails to the client.
   - `[ ]` Build a Lightroom-style infinite grid layout with zoom/pan features in `src/features/player/image/`.
 
-- `[ ]` **Sub-Phase 3.3: 🎬 Flat-First Video & Panoramic WebXR**
+- `[ ]` **Sub-Phase 3.3: Flat-First Video & Panoramic WebXR**
   - `[ ]` Build `<MinimalVideoControls>` in `src/features/player/shared/` containing seek bars and custom menus.
   - `[ ]` Implement the Three.js 3D sphere panorama projection canvas inside `src/features/player/vr/`.
   - `[ ]` Bind standard `<video>` output as a dynamic `VideoTexture` layer projected onto the 3D sphere.
@@ -92,7 +92,7 @@ This is the definitive, step-by-step master checklist for the implementation of 
 
 ---
 
-## ── Phase 4: The Native Win32 MPV Engine (Layer 3) ──
+## Phase 4: The Native Win32 MPV Engine (Layer 3)
 **Goal:** Implement the cinema-grade player for demanding HEVC/10-bit HDR media by injecting a native Win32 `mpv` child window and coordinating layout resizing in real time.
 
 - `[ ]` **Sub-Phase 4.1: Native Child HWND Injection**
@@ -109,7 +109,7 @@ This is the definitive, step-by-step master checklist for the implementation of 
 
 ---
 
-## ── Phase 5: NLE Editor & Universal Actor-Based Job System ──
+## Phase 5: NLE Editor & Universal Actor-Based Job System
 **Goal:** Build a non-blocking, actor-driven background job coordinator, implement SQLite task storage for crash-recovery, secure process bounds with Win32 Job Objects, and render timeline canvases.
 
 - `[ ]` **Sub-Phase 5.1: Actor-Based Concurrency System**
@@ -134,7 +134,7 @@ This is the definitive, step-by-step master checklist for the implementation of 
 
 ---
 
-## ── Phase 6: VR Projection Fixer & Cache Budget Manager ──
+## Phase 6: VR Projection Fixer & Cache Budget Manager
 **Goal:** Build the declarative JSON filter graph compiler, generate rapid test proxies, and manage the temporary storage budget with a strict LRU garbage collection scheduler.
 
 - `[ ]` **Sub-Phase 6.1: Serializable JSON Filter Graphs**

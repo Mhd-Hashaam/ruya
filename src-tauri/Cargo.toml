@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "ruya"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
@@ -23,6 +23,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 libloading = "0.8"
 raw-window-handle = "0.6"
+axum = "0.7"
+futures-core = "0.3"
+tokio = { version = "1", features = ["io-util", "net", "process", "sync"] }
+tokio-util = { version = "0.7", features = ["io", "rt"] }
 tauri = { version = "2.11.1", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"

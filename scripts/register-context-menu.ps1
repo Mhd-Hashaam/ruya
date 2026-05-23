@@ -1,7 +1,7 @@
 # register-context-menu.ps1
 #
-# Registers "Open with Mosiqi" in the Windows Explorer right-click menu
-# for all media file types that Mosiqi supports.
+# Registers "Open with Ruya" in the Windows Explorer right-click menu
+# for all media file types that Ruya supports.
 #
 # Run this script ONCE after installing the app, or after moving the .exe.
 # Must be run as Administrator (right-click → "Run as administrator").
@@ -19,8 +19,8 @@ param(
 if (-not $ExePath) {
   # Default install location produced by `tauri build`
   $candidates = @(
-    "$env:LOCALAPPDATA\Mosiqi\Mosiqi.exe",
-    "$env:PROGRAMFILES\Mosiqi\Mosiqi.exe",
+    "$env:LOCALAPPDATA\Ruya\Ruya.exe",
+    "$env:PROGRAMFILES\Ruya\Ruya.exe",
     "$(Split-Path $MyInvocation.MyCommand.Path -Parent)\..\src-tauri\target\release\app.exe"
   )
   foreach ($c in $candidates) {
@@ -30,14 +30,14 @@ if (-not $ExePath) {
 
 if (-not $ExePath -or -not (Test-Path $ExePath)) {
   Write-Error @"
-Could not find Mosiqi.exe. Please pass the path explicitly:
-  .\register-context-menu.ps1 -ExePath "C:\path\to\Mosiqi.exe"
+Could not find Ruya.exe. Please pass the path explicitly:
+  .\register-context-menu.ps1 -ExePath "C:\path\to\Ruya.exe"
 "@
   exit 1
 }
 
 $ExePath = (Resolve-Path $ExePath).Path
-Write-Host "Registering Mosiqi context menu for: $ExePath" -ForegroundColor Cyan
+Write-Host "Registering Ruya context menu for: $ExePath" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
 # File extensions to register
@@ -52,7 +52,7 @@ $extensions = @(
   ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".avif"
 )
 
-$menuName  = "Open with Mosiqi"
+$menuName  = "Open with Ruya"
 $iconPath  = $ExePath   # Explorer uses the first icon in the exe
 $command   = "`"$ExePath`" `"%1`""
 
@@ -64,7 +64,7 @@ $successCount = 0
 $failCount    = 0
 
 foreach ($ext in $extensions) {
-  $keyPath = "Registry::HKEY_CLASSES_ROOT\$ext\shell\Mosiqi"
+  $keyPath = "Registry::HKEY_CLASSES_ROOT\$ext\shell\Ruya"
   try {
     # Create the shell verb key
     New-Item -Path $keyPath -Force | Out-Null
@@ -85,4 +85,4 @@ foreach ($ext in $extensions) {
 
 Write-Host ""
 Write-Host "Done. $successCount extensions registered, $failCount failed." -ForegroundColor Cyan
-Write-Host "Right-click any media file in Explorer to see 'Open with Mosiqi'." -ForegroundColor Cyan
+Write-Host "Right-click any media file in Explorer to see 'Open with Ruya'." -ForegroundColor Cyan

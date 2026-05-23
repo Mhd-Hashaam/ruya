@@ -6,7 +6,7 @@ Welcome, Agent! This document serves as your **100% complete technical onboardin
 
 ## 1. Project Context & Purpose
 
-**Ruya** (formerly Mosiqi) is a professional, offline-first multimedia hub and non-linear editor (NLE) designed for Windows desktop environments. It is built as a hybrid native-web application using **Tauri V2 (Rust)** on the backend and **Next.js (React/TypeScript)** on the frontend. 
+**Ruya** is a professional, offline-first multimedia hub and non-linear editor (NLE) designed for Windows desktop environments. It is built as a hybrid native-web application using **Tauri V2 (Rust)** on the backend and **Next.js (React/TypeScript)** on the frontend. 
 
 Ruya is architected around a deep division of media tiers:
 1.  **Standard Web Playback:** Simple, browser-native container formats (MP4, WebM) played directly in the browser.
@@ -15,7 +15,40 @@ Ruya is architected around a deep division of media tiers:
 
 ---
 
-## 2. Core Architectural Pillars
+## 2. Project Status Reality Check
+
+> [!WARNING]
+> **READ THIS BEFORE CODING:**
+> The architecture and systems described in this document represent the **target system design**. 
+> 
+> **NOT ALL SUBSYSTEMS ARE CURRENTLY IMPLEMENTED.** 
+> 
+> The project is currently at the boundary of **Phase 0**. Many described modules (e.g. dynamic MPV native windows, background actor queue loops, local range streaming servers, cancellation monitors) are planned target specifications and **do not yet exist** in the compiled codebase.
+> 
+> **DO NOT ASSUME A SUBSYSTEM EXISTS UNLESS VERIFIED IN THE ACTIVE CODEBASE.**
+> 
+> To confirm the actual development progress, you must always audit:
+> 1.  [docs/task_list.md](file:///c:/Users/mhdha_zeezxk7/Downloads/Portfolio/ruya/docs/task_list.md) — The active execution checklist.
+> 2.  **Filesystem Inspection** — Inspect directories to verify what files actually exist.
+> 3.  **Existing Compiled Modules** — Analyze current Rust exports and React mounts.
+> 
+> Never hallucinate existing IPC bridges, MPV native channels, Axum remux loops, or SQLite databases simply because they are documented as target pillars below.
+
+---
+
+## 3. Architectural Core Philosophies & Principles
+
+Every engineering decision you make in Ruya must align with our core philosophies. Memorize these principles before writing code:
+
+*   **"Ruya never guesses file support based on simple extensions."** (We inspect track metadata and system acceleration profiles).
+*   **"Playback stability is prioritized over codec breadth."** (Better to play a few formats with absolute stability than to support 100 formats with frequent crashes).
+*   **"Native decoding is preferred over browser hacks."** (Leverage direct hardware acceleration on the host OS when the browser struggles).
+*   **"Subprocesses must always be disposable."** (FFmpeg/FFprobe tasks must support rapid teardowns, cancellation tokens, and automatic OS cleanup).
+*   **"UI smoothness takes precedence over visual complexity."** (A highly responsive 60 FPS timeline is far better than a bloated, lagging timeline with excessive overlays).
+
+---
+
+## 4. Core Target Architectural Pillars
 
 ### A. The Smart Media Router
 Ruya never guesses file support based on simple extensions. When a file is loaded:
@@ -56,7 +89,7 @@ To render thousands of editing thumbnails on the timeline without triggering bro
 
 ---
 
-## 3. The Official Tech Stack
+## 5. The Official Tech Stack
 
 All development inside Ruya must strictly adhere to the following technological boundaries. No outside libraries or frameworks may be introduced without permission.
 
@@ -72,7 +105,44 @@ All development inside Ruya must strictly adhere to the following technological 
 
 ---
 
-## 4. Directory Topology Reference
+## 6. IPC Philosophy
+
+To prevent architectural chaos, messy feature coupling, and untyped state issues, Ruya enforces a strict boundary policy on frontend-backend communication:
+
+*   **No Direct Invokes:** React components inside individual features (e.g. `features/player/music`) **must never** call the Tauri IPC `invoke()` function directly.
+*   **Centralized Core platform:** All IPC communication must pass strictly through the dedicated wrappers inside [src/core/platform/](file:///c:/Users/mhdha_zeezxk7/Downloads/Portfolio/ruya/src/core/platform/).
+*   **Why this matters:** This keeps our communications cleanly centralized, enables easy validation logging, enforces strict TypeScript API contracts, ensures ease of mocking/testing, and guarantees future portability if we change platform architectures.
+
+---
+
+## 7. Performance Targets
+
+Your implementations are expected to satisfy these measurable engineering budgets. Code that does not meet these targets must be optimized:
+
+| Metric | Target Budget |
+|---|---|
+| **Initial App Launch** | < 2.5 seconds |
+| **Timeline Scroll Framerate** | 60 FPS minimum |
+| **Audio Gap Transition Delay** | < 5 milliseconds |
+| **Stream Seek Responsiveness** | < 150 milliseconds |
+| **Subtitle Render Latency** | Imperceptible (real-time sync) |
+| **Memory Leakage** | Zero bytes retained after playback termination |
+
+---
+
+## 8. Protected Architectural Zones
+
+The following subsystems are foundational. You are **forbidden** to refactor, abstract away, or modify their base models without explicit user approval:
+
+1.  **Media Router Scoring Pipeline (`scorer.rs`):** The performance scoring matrix algorithm.
+2.  **Actor Queue System (`actor.rs`):** The Tokio async message-passing channels design.
+3.  **IPC Contract Structure (`src/core/contracts/`):** The typed API payload boundaries.
+4.  **LMSS Cancellation Model (`cancellation.rs`):** The stream interruption TCP monitoring guard.
+5.  **MPV Window Composition Model (`process.rs`):** The dynamic parent child HWND resizing system.
+
+---
+
+## 9. Directory Topology Reference
 
 Familiarize yourself with the core layout before touching the codebase:
 
@@ -105,29 +175,37 @@ ruya/
 
 ---
 
-## 5. Key Engineering Guidelines & Strict Rules
+## 10. AI Agent Operational & Strict Rules
 
 To maintain high code quality, performance stability, and architectural consistency, you must strictly follow these engineering protocols:
 
-### A. Strict Linting & Compile Targets
-*   **Zero-Tolerance for ESLint Violations:** Strictly follow ESLint rules. **Never** use the TypeScript `any` type. Build type-safe parameters, models, and interfaces inside `src/core/contracts/`.
+### A. Golden Operational Rules
+1.  **Never rewrite existing architecture without permission.**
+2.  **Never replace working systems with abstractions.** (Do not over-engineer).
+3.  **Prefer extending existing modules over creating new patterns.**
+4.  **Preserve type safety at all costs.** (No `any` type usage, strict ESLint compliance).
+5.  **Never introduce duplicate state stores.**
+6.  **Never bypass platform contracts or IPC boundaries.** (Enforce IPC Philosophy).
+7.  **Verify filesystem reality before coding.**
+8.  **Never silently install dependencies.** (Query the user before introducing npm packages or Rust crates).
+9.  **Always mark completed tasks as done.** When a task or checklist item is fully completed and verified, update `docs/task_list.md` from `[ ]` to `[x]` so future agents do not inherit stale or confusing progress state.
+
+### B. Strict Linting & Compile Targets
+*   **Zero-Tolerance for ESLint Violations:** Strictly follow ESLint rules. Build type-safe parameters, models, and interfaces inside `src/core/contracts/`.
 *   **Mandatory Linting & Build Verification:** Run Next.js lint checkers and test compilation (`npm run build`) immediately after any major change. Do not push code that causes warnings or build errors.
 *   **Rust Compiler Compliance:** Run `cargo check` after every significant backend change. Ensure your Rust builds are warning-free and target safety protocols correctly.
-
-### B. No Technology Pivoting or Additions
-*   **Strict Stack Compliance:** You are **strictly forbidden** to introduce, add, or swap any new frameworks, tools, npm packages, or Rust crates without the user's explicit permission. Work strictly within the defined technology stack.
 
 ### C. Anti-Hallucination & Zero-Assumption Policy
 *   **No Guesswork or Logical Assumption:** Do not hallucinate files, paths, utilities, or library functions.
 *   **Ask Clarifying Questions:** If any technical requirement, edge-case, or design spec is ambiguous or underspecified, **stop immediately and ask the user for clarification** instead of implementing assumptions.
 
-### D. Strict UI Consistency & Design tokens
+### D. Strict UI Consistency & Design Tokens
 *   **Strict Design System Adherence:** All styling must strictly map to the core CSS tokens and HSL variables declared in `src/ui/ui.css`. Do not write ad-hoc CSS colors, inline styling, or random margins.
 *   **Flawless UI Consistency:** Maintain identical interactive animations, glassmorphism gradients, typography standards, and volume/seek controls across all views (Music, Video, Image, and Editor). The user experience must feel unified under a single premium design system.
 
 ---
 
-## 6. How to Resume Work After a Reset
+## 11. How to Resume Work After a Reset
 
 When resuming work:
 1.  **Read the Master Task List:** Open [task_list.md](file:///c:/Users/mhdha_zeezxk7/Downloads/Portfolio/ruya/docs/task_list.md).

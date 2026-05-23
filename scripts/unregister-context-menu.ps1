@@ -1,6 +1,6 @@
 # unregister-context-menu.ps1
 #
-# Removes all "Open with Mosiqi" context menu entries from the Windows Registry.
+# Removes all "Open with Ruya" context menu entries from the Windows Registry.
 # Run as Administrator.
 
 $extensions = @(
@@ -11,7 +11,7 @@ $extensions = @(
 
 $removed = 0
 foreach ($ext in $extensions) {
-  $keyPath = "Registry::HKEY_CLASSES_ROOT\$ext\shell\Mosiqi"
+  $keyPath = "Registry::HKEY_CLASSES_ROOT\$ext\shell\Ruya"
   if (Test-Path $keyPath) {
     try {
       Remove-Item -Path $keyPath -Recurse -Force
