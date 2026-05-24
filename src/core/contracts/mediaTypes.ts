@@ -11,6 +11,7 @@ export interface MediaMetadata {
   audioCodec?: string;
   hasSubtitles?: boolean;
   isHdr?: boolean;
+  transcodeVideo?: boolean;
 }
 
 export interface RoutingScore {

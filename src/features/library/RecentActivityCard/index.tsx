@@ -13,7 +13,7 @@ interface RecentActivityCardProps {
 }
 
 export const RecentActivityCard = ({ activity, onPlay }: RecentActivityCardProps) => {
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
   const setCurrentTimeStore = usePlaybackStore((s) => s.setCurrentTime);
   
   const thumbnail = useThumbnail(activity.path, activity.currentTime);
@@ -25,11 +25,12 @@ export const RecentActivityCard = ({ activity, onPlay }: RecentActivityCardProps
   const isVideo = activity.kind === "video";
 
   const handlePlay = () => {
-    setTargetFromPath(activity.path);
-    if (activity.currentTime) {
-      setCurrentTimeStore(activity.currentTime);
-    }
-    onPlay();
+    void openMediaFromPath(activity.path).then(() => {
+      if (activity.currentTime) {
+        setCurrentTimeStore(activity.currentTime);
+      }
+      onPlay();
+    });
   };
 
   return (

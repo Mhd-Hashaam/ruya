@@ -32,7 +32,7 @@ export const SidebarLibrary = ({
   activeView,
   onViewChange,
 }: SidebarLibraryProps) => {
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
   const handleOpenFile = async () => {
     const state = await libraryStateGet();
@@ -44,8 +44,15 @@ export const SidebarLibrary = ({
     if (!selected || Array.isArray(selected)) return;
     await libraryRecentUpsert(selected, "file");
     await libraryLastDirectorySet(getParentDirectory(selected));
-    setTargetFromPath(selected);
-    onViewChange("player");
+    await openMediaFromPath(selected);
+    const kind = usePlaybackStore.getState().target?.kind;
+    if (kind === "audio") {
+      onViewChange("music");
+    } else if (kind === "image") {
+      onViewChange("images");
+    } else {
+      onViewChange("player");
+    }
   };
 
   return (

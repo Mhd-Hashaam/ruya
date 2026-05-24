@@ -85,15 +85,23 @@ export function toStreamUrl(filePath: string): string {
   return convertFileSrc(filePath, "stream");
 }
 
-export async function toLmssStreamUrl(filePath: string, startTime: number = 0): Promise<string | null> {
+export async function toLmssStreamUrl(
+  filePath: string,
+  startTime: number = 0,
+  transcode: boolean = false,
+): Promise<string | null> {
   if (!filePath) return null;
   const port = await lmssPortGet();
   if (!port) return null;
   const encoded = encodeURIComponent(filePath);
+  let url = `http://127.0.0.1:${port}/stream?path=${encoded}`;
   if (startTime > 0) {
-    return `http://127.0.0.1:${port}/stream?path=${encoded}&ss=${startTime}`;
+    url += `&ss=${startTime}`;
   }
-  return `http://127.0.0.1:${port}/stream?path=${encoded}`;
+  if (transcode) {
+    url += `&transcode=true`;
+  }
+  return url;
 }
 
 /**

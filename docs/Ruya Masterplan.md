@@ -57,16 +57,20 @@ If the conversation context is ever lost, this plan provides 100% of the context
     2.  [ ] Save the bound port dynamically in Tauri's global state so the frontend can query the active stream URL.
     3.  [ ] Add multi-range support (`Range` HTTP header) to allow the browser player to request sub-slices of data.
 
-### Sub-Phase 1.2: FFmpeg Remux Pipe Pipeline
-*   **Mechanism:** Run a non-blocking FFmpeg subprocess to remux input streams on-the-fly. The command must transcode only when necessary, copying native streams into fragmented MP4 containers for instant browser playback.
-*   **ChatGPT Upgrade:** Add `-movflags frag_keyframe+empty_moov+faststart` to optimize initial playback latency and seek responsiveness by shifting the metadata overhead.
+### Sub-Phase 1.2: FFmpeg Remux and Transcode Pipeline
+*   **Mechanism:** Run a non-blocking FFmpeg subprocess to remux or transcode input streams on-the-fly. The command must stream-copy native streams when possible, and transcode heavy codecs (like HEVC) to browser-friendly H.264 when required.
+*   **ChatGPT Upgrade:** Add `-movflags frag_keyframe+empty_moov+faststart` to optimize initial playback latency. For transcoding, use `-preset superfast -tune zerolatency -crf 23 -pix_fmt yuv420p` to balance CPU load with compatibility.
 *   **Checklist:**
     1.  [ ] Implement subprocess execution in `src-tauri/src/lmss/remuxer.rs` using `tokio::process::Command`.
-    2.  [ ] Configure FFmpeg arguments:
+    2.  [ ] Configure FFmpeg arguments for stream-copy:
         ```bash
         ffmpeg -i <FILE_PATH> -c:v copy -c:a aac -f mp4 -movflags frag_keyframe+empty_moov+faststart pipe:1
         ```
-    3.  [ ] Pipe stdout directly into the HTTP response body using a chunked stream reader.
+    3.  [ ] Configure FFmpeg arguments for transcoding (e.g., HEVC):
+        ```bash
+        ffmpeg -i <FILE_PATH> -c:v libx264 -preset superfast -tune zerolatency -crf 23 -pix_fmt yuv420p -c:a aac -f mp4 -movflags frag_keyframe+empty_moov+faststart pipe:1
+        ```
+    4.  [ ] Pipe stdout directly into the HTTP response body using a chunked stream reader.
 
 ### Sub-Phase 1.3: Stream Interruption & Broken Pipe Handling
 *   **Mechanism:** Handle rapid user actions (seeking, skipping, and closing videos) which cause the browser to break connections. The server must proactively capture network termination events and terminate the corresponding FFmpeg processes.
@@ -94,8 +98,8 @@ If the conversation context is ever lost, this plan provides 100% of the context
 *   **ChatGPT Upgrade:** Implement a scoring matrix in `src-tauri/src/router/scorer.rs` to route media.
 *   **Decision Matrix:**
     *   **Score >= 90:** Layer 1 (Direct Browser HTML5) -> Standard MP4, WebM (H.264/VP9/AV1).
-    *   **Score 60 - 89:** Layer 2 (LMSS Remux) -> MKV container, browser-safe video codec, incompatible audio/subtitle format.
-    *   **Score < 60:** Layer 3 (Native MPV HWND) -> HEVC (H.265), 10-bit HDR, Dolby Vision, ASS styled subtitles, high-bitrate raw containers.
+    *   **Score 60 - 89:** Layer 2 (LMSS Remux or Transcode) -> MKV container. Copies browser-safe codecs (H.264) and transcodes incompatible codecs (HEVC) to H.264 ultrafast on-the-fly.
+    *   **Score < 60:** Layer 3 (Native MPV HWND) -> 10-bit HDR, Dolby Vision, ASS styled subtitles, AV1 (too heavy for realtime transcode), high-bitrate raw containers.
 *   **Checklist:**
     1.  [ ] Implement `src-tauri/src/router/scorer.rs` containing the Scoring Matrix.
     2.  [ ] Return a unified routing payload over the Tauri IPC: `{ score: u8, layer: PlaybackLayer, metadata: MediaMetadata }`.
@@ -141,8 +145,8 @@ If the conversation context is ever lost, this plan provides 100% of the context
 ---
 
 ## Phase 4: The Native Win32 MPV Engine (Layer 3)
-**Goal:** Deliver HW-accelerated native playback for demanding media (HEVC/10-bit HDR/Dolby) by injecting a native Win32 `mpv` viewport directly into the Tauri window structure.
-**Verify Output:** HDR/HEVC files play smoothly at native speeds. Resizing the Tauri window resizes the video viewport instantly. Fullscreen transitions do not glitch or trigger black screen cycles.
+**Goal:** Deliver HW-accelerated native playback for demanding media (10-bit HDR/Dolby/ASS Subtitles/AV1) by injecting a native Win32 `mpv` viewport directly into the Tauri window structure.
+**Verify Output:** HDR files play smoothly at native speeds. Resizing the Tauri window resizes the video viewport instantly. Fullscreen transitions do not glitch or trigger black screen cycles.
 
 ```
 ┌─────────────────────────────────────────────────────────┐

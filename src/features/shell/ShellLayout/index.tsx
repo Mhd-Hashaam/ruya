@@ -5,11 +5,14 @@ import styles from "./index.module.css";
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 
-import { SidebarDock } from "@/features/shell/SidebarDock";
-import { HomeView } from "@/features/library/HomeView";
-import { PlaybackViewport } from "@/features/player/shared/PlaybackViewport";
+import { shellViewForMediaKind } from "@/core/media/shellRouting";
 import { usePlaybackStore } from "@/core/state/playbackStore";
+import { HomeView } from "@/features/library/HomeView";
+import { ImageFullscreenViewer } from "@/features/player/image/ImageFullscreenViewer";
+import { MusicNowPlaying } from "@/features/player/music/MusicNowPlaying";
 import { MiniPlayer } from "@/features/player/shared/MiniPlayer";
+import { PlaybackViewport } from "@/features/player/shared/PlaybackViewport";
+import { SidebarDock } from "@/features/shell/SidebarDock";
 import { cliGetOpenPath, libraryRecentUpsert } from "@/core/platform/tauriClient";
 
 type View = "home" | "music" | "videos" | "playlists" | "player" | "images" | "vr-fixer" | "settings";
@@ -20,9 +23,15 @@ export const ShellLayout = () => {
   const setIsMinimized = usePlaybackStore((s) => s.setIsMinimized);
   const target = usePlaybackStore((s) => s.target);
   const clearTarget = usePlaybackStore((s) => s.clearTarget);
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
-
+  const navigateForOpenedPath = async (path: string) => {
+    await openMediaFromPath(path);
+    const kind = usePlaybackStore.getState().target?.kind;
+    if (kind) {
+      setActiveView(shellViewForMediaKind(kind) as View);
+    }
+  };
 
   // -------------------------------------------------------------------------
   // On startup, check if the app was launched with a file argument from the
@@ -31,11 +40,11 @@ export const ShellLayout = () => {
   useEffect(() => {
     void cliGetOpenPath().then((path) => {
       if (!path) return;
-      void libraryRecentUpsert(path, "file");
-      setTargetFromPath(path);
-      setActiveView("player");
+      void libraryRecentUpsert(path, "file").then(() => {
+        void navigateForOpenedPath(path);
+      });
     });
-  }, [setTargetFromPath]);
+  }, [openMediaFromPath]);
 
   // -------------------------------------------------------------------------
   // Drag and Drop to Play
@@ -45,16 +54,16 @@ export const ShellLayout = () => {
       const payload = event.payload as { paths: string[] };
       const path = payload.paths[0];
       if (path) {
-        void libraryRecentUpsert(path, "file");
-        setTargetFromPath(path);
-        setActiveView("player");
+        void libraryRecentUpsert(path, "file").then(() => {
+          void navigateForOpenedPath(path);
+        });
       }
     });
 
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [setTargetFromPath]);
+  }, [openMediaFromPath]);
 
   // When minimizing, automatically switch back to library view if we were in the player
   useEffect(() => {
@@ -66,11 +75,18 @@ export const ShellLayout = () => {
 
   const handleRestore = () => {
     setIsMinimized(false);
-    setActiveView("player");
+    if (target) {
+      setActiveView(shellViewForMediaKind(target.kind) as View);
+    } else {
+      setActiveView("player");
+    }
   };
 
   const handleFileOpened = () => {
-    setActiveView("player");
+    const kind = usePlaybackStore.getState().target?.kind;
+    if (kind) {
+      setActiveView(shellViewForMediaKind(kind) as View);
+    }
   };
 
   const handleBackToLibrary = () => {
@@ -82,26 +98,32 @@ export const ShellLayout = () => {
     setActiveView(view as View);
   };
 
+  const showStation =
+    (activeView === "player" || activeView === "music" || activeView === "images") &&
+    !isMinimized;
+
   return (
     <div className={styles.shell}>
-      {/* New Floating Dock Sidebar */}
-      {activeView !== "player" && (
-        <SidebarDock
-          onViewChange={handleViewChange}
-        />
+      {!showStation && (
+        <SidebarDock onViewChange={handleViewChange} />
       )}
 
-
       <main className={styles.main}>
-        {activeView === "player" && !isMinimized ? (
-          <PlaybackViewport onBack={handleBackToLibrary} />
+        {showStation ? (
+          <>
+            {activeView === "player" && (
+              <PlaybackViewport onBack={handleBackToLibrary} />
+            )}
+            {activeView === "music" && <MusicNowPlaying />}
+            {activeView === "images" && <ImageFullscreenViewer />}
+          </>
         ) : (
           <HomeView onFileOpened={handleFileOpened} />
         )}
 
         {isMinimized && target && (
-          <MiniPlayer 
-            onRestore={handleRestore} 
+          <MiniPlayer
+            onRestore={handleRestore}
             onClose={() => clearTarget()}
           />
         )}

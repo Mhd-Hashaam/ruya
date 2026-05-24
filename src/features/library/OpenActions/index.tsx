@@ -15,7 +15,7 @@ interface OpenActionsProps {
 }
 
 export const OpenActions = ({ onFileOpened }: OpenActionsProps) => {
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
   const handleOpenFile = async () => {
     const state = await libraryStateGet();
@@ -27,7 +27,7 @@ export const OpenActions = ({ onFileOpened }: OpenActionsProps) => {
     if (!selected || Array.isArray(selected)) return;
     await libraryRecentUpsert(selected, "file");
     await libraryLastDirectorySet(getParentDirectory(selected));
-    setTargetFromPath(selected);
+    await openMediaFromPath(selected);
     onFileOpened?.();
   };
 

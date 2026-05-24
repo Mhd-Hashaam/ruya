@@ -1,89 +1,151 @@
-/// mpv_libmpv_probe — diagnostic command that checks whether libmpv-2.dll
-/// is loadable and has all required symbols.
-///
-/// Uses the same candidate path resolution as mpv_core so the probe result
-/// accurately reflects what the engine will find at runtime.
-use libloading::Library;
-use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use std::path::Path;
 
-use crate::mpv::core::dll_candidates;
+use serde::Deserialize;
+use tokio::process::Command;
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LibMpvProbeResult {
-    pub available: bool,
-    pub library_path: Option<String>,
-    pub missing_symbols: Vec<String>,
-    pub error: Option<String>,
+use crate::core::error::{Result, RuyaError};
+
+#[derive(Debug, Clone)]
+pub struct VideoStreamInfo {
+    pub codec_name: String,
+    pub profile: Option<String>,
+    pub pix_fmt: Option<String>,
+    pub color_space: Option<String>,
+    pub color_transfer: Option<String>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
 }
 
-const REQUIRED_SYMBOLS: &[&str] = &[
-    "mpv_create",
-    "mpv_initialize",
-    "mpv_terminate_destroy",
-    "mpv_set_option_string",
-    "mpv_command",
-    "mpv_render_context_create",
-    "mpv_render_context_render",
-    "mpv_render_context_set_update_callback",
-    "mpv_render_context_free",
-];
-
-unsafe fn find_missing_symbols(lib: &Library) -> Vec<String> {
-    REQUIRED_SYMBOLS
-        .iter()
-        .filter_map(|name| {
-            let sym_name = format!("{name}\0");
-            if lib
-                .get::<*const std::ffi::c_void>(sym_name.as_bytes())
-                .is_err()
-            {
-                Some((*name).to_string())
-            } else {
-                None
-            }
-        })
-        .collect()
+#[derive(Debug, Clone)]
+pub struct AudioStreamInfo {
+    pub codec_name: String,
 }
 
-#[tauri::command]
-pub fn mpv_libmpv_probe(app: AppHandle) -> LibMpvProbeResult {
-    let resource_dir = app.path().resource_dir().ok();
-    let candidates = dll_candidates(resource_dir);
-    let mut last_error: Option<String> = None;
+#[derive(Debug, Clone)]
+pub struct SubtitleStreamInfo {
+    pub codec_name: String,
+}
 
-    for candidate in &candidates {
-        let lib = match unsafe { Library::new(candidate) } {
-            Ok(l) => l,
-            Err(e) => {
-                last_error = Some(format!("{}: {e}", candidate.display()));
-                continue;
+#[derive(Debug, Clone)]
+pub struct FfprobeResult {
+    pub format_name: String,
+    pub duration_seconds: f64,
+    pub video: Option<VideoStreamInfo>,
+    pub audio: Option<AudioStreamInfo>,
+    pub subtitles: Vec<SubtitleStreamInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FfprobeJson {
+    streams: Vec<FfprobeStream>,
+    format: Option<FfprobeFormat>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FfprobeFormat {
+    format_name: Option<String>,
+    duration: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FfprobeStream {
+    codec_type: Option<String>,
+    codec_name: Option<String>,
+    profile: Option<String>,
+    pix_fmt: Option<String>,
+    color_space: Option<String>,
+    color_transfer: Option<String>,
+    width: Option<u32>,
+    height: Option<u32>,
+}
+
+pub async fn ffprobe_file(path: &str) -> Result<FfprobeResult> {
+    let path_obj = Path::new(path);
+    if !path_obj.exists() {
+        return Err(RuyaError {
+            code: "FILE_NOT_FOUND".to_string(),
+            message: format!("File not found: {path}"),
+        });
+    }
+
+    let output = Command::new("ffprobe")
+        .arg("-v")
+        .arg("quiet")
+        .arg("-print_format")
+        .arg("json")
+        .arg("-show_format")
+        .arg("-show_streams")
+        .arg(path)
+        .output()
+        .await
+        .map_err(|e| RuyaError {
+            code: "FFPROBE_FAILED".to_string(),
+            message: e.to_string(),
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(RuyaError {
+            code: "FFPROBE_FAILED".to_string(),
+            message: format!("ffprobe exited with error: {stderr}"),
+        });
+    }
+
+    let parsed: FfprobeJson = serde_json::from_slice(&output.stdout).map_err(|e| RuyaError {
+        code: "FFPROBE_PARSE_FAILED".to_string(),
+        message: e.to_string(),
+    })?;
+
+    let format_name = parsed
+        .format
+        .as_ref()
+        .and_then(|f| f.format_name.clone())
+        .unwrap_or_default();
+
+    let duration_seconds = parsed
+        .format
+        .as_ref()
+        .and_then(|f| f.duration.as_ref())
+        .and_then(|d| d.parse::<f64>().ok())
+        .unwrap_or(0.0);
+
+    let mut video: Option<VideoStreamInfo> = None;
+    let mut audio: Option<AudioStreamInfo> = None;
+    let mut subtitles = Vec::new();
+
+    for stream in parsed.streams {
+        let codec_type = stream.codec_type.unwrap_or_default();
+        match codec_type.as_str() {
+            "video" if video.is_none() => {
+                video = Some(VideoStreamInfo {
+                    codec_name: stream.codec_name.unwrap_or_default(),
+                    profile: stream.profile,
+                    pix_fmt: stream.pix_fmt,
+                    color_space: stream.color_space,
+                    color_transfer: stream.color_transfer,
+                    width: stream.width,
+                    height: stream.height,
+                });
             }
-        };
-
-        let missing = unsafe { find_missing_symbols(&lib) };
-        if missing.is_empty() {
-            return LibMpvProbeResult {
-                available: true,
-                library_path: Some(candidate.display().to_string()),
-                missing_symbols: vec![],
-                error: None,
-            };
+            "audio" if audio.is_none() => {
+                audio = Some(AudioStreamInfo {
+                    codec_name: stream.codec_name.unwrap_or_default(),
+                });
+            }
+            "subtitle" => {
+                subtitles.push(SubtitleStreamInfo {
+                    codec_name: stream.codec_name.unwrap_or_default(),
+                });
+            }
+            _ => {}
         }
-
-        return LibMpvProbeResult {
-            available: false,
-            library_path: Some(candidate.display().to_string()),
-            missing_symbols: missing,
-            error: Some("libmpv loaded but required symbols are missing".into()),
-        };
     }
 
-    LibMpvProbeResult {
-        available: false,
-        library_path: None,
-        missing_symbols: vec![],
-        error: last_error.or_else(|| Some("libmpv-2.dll not found in any candidate path".into())),
-    }
+    Ok(FfprobeResult {
+        format_name,
+        duration_seconds,
+        video,
+        audio,
+        subtitles,
+    })
 }

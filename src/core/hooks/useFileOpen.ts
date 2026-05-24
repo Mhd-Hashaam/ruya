@@ -16,7 +16,7 @@ function getParentDirectory(path: string): string {
 }
 
 export function useFileOpen() {
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
   const handleOpenFile = async (onFileOpened?: () => void) => {
     const state = await libraryStateGet();
@@ -30,7 +30,7 @@ export function useFileOpen() {
     
     await libraryRecentUpsert(selected, "file");
     await libraryLastDirectorySet(getParentDirectory(selected));
-    setTargetFromPath(selected);
+    await openMediaFromPath(selected);
     onFileOpened?.();
   };
 

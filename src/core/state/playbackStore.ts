@@ -3,8 +3,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import type { RoutingScore } from "@/core/contracts/mediaTypes";
 import type { MediaKind } from "@/core/media/mediaKind";
 import { detectMediaKind } from "@/core/media/mediaKind";
+import { routerScoreMedia } from "@/core/platform/routerClient";
 
 export interface PlaybackTarget {
   path: string;
@@ -27,12 +29,14 @@ export interface RecentActivity {
 
 interface PlaybackStoreState {
   target: PlaybackTarget | null;
+  routing: RoutingScore | null;
+  isRouting: boolean;
   isMinimized: boolean;
   currentTime: number;
   duration: number;
   lastPlayback: LastPlayback | null;
   recentActivities: RecentActivity[];
-  setTargetFromPath: (path: string) => void;
+  openMediaFromPath: (path: string) => Promise<void>;
   setIsMinimized: (minimized: boolean) => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
@@ -47,19 +51,44 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
   persist(
     (set, get) => ({
       target: null,
+      routing: null,
+      isRouting: false,
       isMinimized: false,
       currentTime: 0,
       duration: 0,
       lastPlayback: null,
       recentActivities: [],
-      
-      setTargetFromPath: (path) => {
+
+      openMediaFromPath: async (path) => {
         const kind = detectMediaKind(path);
         set({
+          isRouting: kind === "video",
+          routing: null,
           target: { path, kind },
           isMinimized: false,
           currentTime: 0,
           duration: 0,
+        });
+
+        let routing: RoutingScore | null = null;
+        if (kind === "video") {
+          try {
+            routing = await routerScoreMedia(path);
+            console.info(
+              "[Ruya Router] score=%d layer=%s path=%s",
+              routing.score,
+              routing.layer,
+              path,
+            );
+          } catch (error) {
+            console.warn("[Ruya Router] scoring failed for", path, error);
+          }
+        }
+
+        set({
+          routing,
+          isRouting: false,
+          duration: routing?.metadata.durationSeconds ?? get().duration,
         });
         get().addToRecent(path, kind);
       },
@@ -72,7 +101,7 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
         const { target, currentTime, duration } = get();
         if (target) {
           set({
-            lastPlayback: { path: target.path, currentTime, duration }
+            lastPlayback: { path: target.path, currentTime, duration },
           });
           get().updateRecentTime(target.path, currentTime, duration);
         }
@@ -87,39 +116,42 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
             lastPlayed: Date.now(),
           };
           return {
-            recentActivities: [newActivity, ...filtered].slice(0, 50)
+            recentActivities: [newActivity, ...filtered].slice(0, 50),
           };
         });
       },
 
       updateRecentTime: (path, time, duration) => {
         set((state) => ({
-          recentActivities: state.recentActivities.map((a) => 
-            a.path === path ? { ...a, currentTime: time, duration } : a
-          )
+          recentActivities: state.recentActivities.map((a) =>
+            a.path === path ? { ...a, currentTime: time, duration } : a,
+          ),
         }));
       },
 
       clearTarget: () => {
         const { target, currentTime, duration, lastPlayback } = get();
-        
-        // Update recent time for current target before clearing
+
         if (target) {
           get().updateRecentTime(target.path, currentTime, duration);
         }
 
-        const newLast = target ? {
-          path: target.path,
-          currentTime: currentTime,
-          duration: duration,
-        } : lastPlayback;
+        const newLast = target
+          ? {
+              path: target.path,
+              currentTime,
+              duration,
+            }
+          : lastPlayback;
 
         set({
           target: null,
+          routing: null,
+          isRouting: false,
           isMinimized: false,
           currentTime: 0,
           duration: 0,
-          lastPlayback: newLast
+          lastPlayback: newLast,
         });
       },
 
@@ -131,6 +163,6 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
         lastPlayback: state.lastPlayback,
         recentActivities: state.recentActivities,
       }),
-    }
-  )
+    },
+  ),
 );

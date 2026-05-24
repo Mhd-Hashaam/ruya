@@ -21,7 +21,7 @@ interface ContinueWatchingCardProps {
 
 export const ContinueWatchingCard = ({ onPlay }: ContinueWatchingCardProps) => {
   const lastPlayback = usePlaybackStore((s) => s.lastPlayback);
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
   const setCurrentTimeStore = usePlaybackStore((s) => s.setCurrentTime);
   
   const thumbnail = useThumbnail(lastPlayback?.path || "", lastPlayback?.currentTime);
@@ -32,9 +32,10 @@ export const ContinueWatchingCard = ({ onPlay }: ContinueWatchingCardProps) => {
   const progress = lastPlayback.duration > 0 ? (lastPlayback.currentTime / lastPlayback.duration) * 100 : 0;
 
   const handlePlay = () => {
-    setTargetFromPath(lastPlayback.path);
-    setCurrentTimeStore(lastPlayback.currentTime);
-    onPlay();
+    void openMediaFromPath(lastPlayback.path).then(() => {
+      setCurrentTimeStore(lastPlayback.currentTime);
+      onPlay();
+    });
   };
 
   return (

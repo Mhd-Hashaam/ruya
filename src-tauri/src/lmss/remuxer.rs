@@ -6,7 +6,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::cancellation::StreamGuard;
 
-pub fn spawn_fragmented_mp4_stream(path: &Path, start_time: Option<f64>) -> Result<StreamGuard> {
+pub fn spawn_fragmented_mp4_stream(path: &Path, start_time: Option<f64>, transcode: bool) -> Result<StreamGuard> {
     let cancel_token = CancellationToken::new();
 
     let mut cmd = tokio::process::Command::new("ffmpeg");
@@ -21,10 +21,24 @@ pub fn spawn_fragmented_mp4_stream(path: &Path, start_time: Option<f64>) -> Resu
         .arg("-probesize")
         .arg("5000000") // 5 MB
         .arg("-i")
-        .arg(path)
-        .arg("-c:v")
-        .arg("copy")
-        .arg("-c:a")
+        .arg(path);
+
+    if transcode {
+        cmd.arg("-c:v")
+            .arg("libx264")
+            .arg("-preset")
+            .arg("superfast")
+            .arg("-tune")
+            .arg("zerolatency")
+            .arg("-crf")
+            .arg("23")
+            .arg("-pix_fmt")
+            .arg("yuv420p");
+    } else {
+        cmd.arg("-c:v").arg("copy");
+    }
+
+    cmd.arg("-c:a")
         .arg("aac")
         .arg("-f")
         .arg("mp4")

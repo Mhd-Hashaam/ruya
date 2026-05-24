@@ -103,7 +103,7 @@ interface RecentItemsProps {
 export const RecentItems = ({ onPlay }: RecentItemsProps) => {
   const libraryState = useLibraryStore((s) => s.libraryState);
   const refreshLibraryState = useLibraryStore((s) => s.refreshLibraryState);
-  const setTargetFromPath = usePlaybackStore((s) => s.setTargetFromPath);
+  const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
   useEffect(() => {
     void refreshLibraryState();
@@ -112,8 +112,7 @@ export const RecentItems = ({ onPlay }: RecentItemsProps) => {
   const items = libraryState?.recentItems ?? [];
 
   const handlePlay = (path: string) => {
-    setTargetFromPath(path);
-    onPlay?.();
+    void openMediaFromPath(path).then(() => onPlay?.());
   };
 
   return (

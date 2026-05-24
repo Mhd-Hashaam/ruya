@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { isBrowserNativeVideo, isLmssStreamable, toLmssStreamUrl } from "@/core/platform/videoStreamClient";
+import { usePlaybackStore } from "@/core/state/playbackStore";
 
 // ---------------------------------------------------------------------------
 // Cache
@@ -37,10 +38,10 @@ const THUMB_H = 180;
 const SEEK_FRACTION = 0.15;
 const TIMEOUT_MS = 12_000;
 
-async function generateThumbnail(filePath: string, seekTime?: number): Promise<string> {
+async function generateThumbnail(filePath: string, seekTime?: number, transcode?: boolean): Promise<string> {
   let src = convertFileSrc(filePath, "stream");
   if (isLmssStreamable(filePath)) {
-    const lmssSrc = await toLmssStreamUrl(filePath, seekTime);
+    const lmssSrc = await toLmssStreamUrl(filePath, seekTime, transcode);
     if (!lmssSrc) throw new Error("LMSS port not available");
     src = lmssSrc;
     seekTime = undefined;
@@ -159,6 +160,8 @@ export function useThumbnail(filePath: string, seekTime?: number): string | null
   // Use a stable key that rounds the time to prevent excessive regeneration
   const stableTime = seekTime !== undefined ? Math.floor(seekTime) : undefined;
   const cacheKey = filePath + (stableTime !== undefined ? `@${stableTime}` : "");
+  // Read transcode flag from the active routing metadata (set by the scorer)
+  const transcodeVideo = usePlaybackStore((s) => s.routing?.metadata?.transcodeVideo);
 
   const [dataUrl, setDataUrl] = useState<string | null>(() => {
     const hit = cache.get(cacheKey);
@@ -180,7 +183,7 @@ export function useThumbnail(filePath: string, seekTime?: number): string | null
     acquire()
       .then(() => {
         if (cancelled) { release(); return Promise.resolve(undefined); }
-        return generateThumbnail(filePath, stableTime);
+        return generateThumbnail(filePath, stableTime, transcodeVideo);
       })
       .then((url) => {
         if (!url) return;
@@ -193,7 +196,7 @@ export function useThumbnail(filePath: string, seekTime?: number): string | null
       });
 
     return () => { cancelled = true; };
-  }, [filePath, stableTime, cacheKey]);
+  }, [filePath, stableTime, cacheKey, transcodeVideo]);
 
   return dataUrl;
 }

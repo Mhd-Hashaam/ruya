@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum PlaybackLayer {
+    #[serde(rename = "Layer1_Direct")]
     Layer1Direct,
+    #[serde(rename = "Layer2_Stream")]
     Layer2Stream,
+    #[serde(rename = "Layer3_Native")]
     Layer3Native,
 }
 
@@ -20,6 +23,7 @@ pub struct MediaMetadata {
     pub audio_codec: Option<String>,
     pub has_subtitles: bool,
     pub is_hdr: bool,
+    pub transcode_video: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

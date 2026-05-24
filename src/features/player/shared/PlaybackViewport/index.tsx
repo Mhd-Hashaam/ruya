@@ -21,11 +21,24 @@ import {
   getLmssDuration,
 } from "@/core/platform/videoStreamClient";
 import { usePlaybackStore } from "@/core/state/playbackStore";
+import type { PlaybackLayer } from "@/core/contracts/mediaTypes";
 import { MinimalVideoControls } from "@/features/player/shared/MinimalVideoControls";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function resolvePlaybackLayer(
+  path: string,
+  routedLayer: PlaybackLayer | null,
+  isRouting: boolean,
+): PlaybackLayer | null {
+  if (isRouting) return null;
+  if (routedLayer) return routedLayer;
+  if (isBrowserNativeVideo(path)) return "Layer1_Direct";
+  if (isLmssStreamable(path)) return "Layer2_Stream";
+  return "Layer3_Native";
+}
 
 function toMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -127,9 +140,10 @@ interface LmssVideoPlayerProps {
   filePath: string;
   title: string;
   onError: (msg: string) => void;
+  transcode?: boolean;
 }
 
-const LmssVideoPlayer = ({ filePath, title, onError }: LmssVideoPlayerProps) => {
+const LmssVideoPlayer = ({ filePath, title, onError, transcode }: LmssVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [lmssUrl, setLmssUrl] = useState<string | null>(null);
   const [trueDuration, setTrueDuration] = useState<number>(0);
@@ -145,8 +159,8 @@ const LmssVideoPlayer = ({ filePath, title, onError }: LmssVideoPlayerProps) => 
     // Show a loading state briefly while remuxing starts
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLmssUrl(null);
-    void toLmssStreamUrl(filePath, startTime).then(setLmssUrl);
-  }, [filePath, startTime]);
+    void toLmssStreamUrl(filePath, startTime, transcode).then(setLmssUrl);
+  }, [filePath, startTime, transcode]);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -294,7 +308,7 @@ const M2HardwarePlayer = ({ title }: M2HardwarePlayerProps) => {
 
   useEffect(() => {
     const checkPip = () => {
-      const pipVideo = (window as Record<string, unknown>)._pipVideo;
+      const pipVideo = (window as unknown as Record<string, unknown>)._pipVideo;
       setIsPipActive(!!document.pictureInPictureElement && document.pictureInPictureElement === pipVideo);
     };
     const interval = setInterval(checkPip, 500);
@@ -331,6 +345,8 @@ interface PlaybackViewportProps {
 
 export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
   const target = usePlaybackStore((s) => s.target);
+  const routing = usePlaybackStore((s) => s.routing);
+  const isRouting = usePlaybackStore((s) => s.isRouting);
   const [mpvReady, setMpvReady] = useState(false);
 
   const [scopedError, setScopedError] = useState<ScopedError | null>(null);
@@ -349,6 +365,11 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
 
   const lastLoadedRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    setLmssFailed(false);
+    lastLoadedRef.current = null;
+  }, [target?.path, routing?.layer]);
+
   // Init libmpv once (D3D11 M2 path on Windows)
   useEffect(() => {
     void mpvInit()
@@ -362,16 +383,14 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
   useEffect(() => {
     if (!target) return;
     if (!mpvReady) return;
+    if (isRouting) return;
+
+    const layer = resolvePlaybackLayer(target.path, routing?.layer ?? null, isRouting);
 
     const needsMpv =
       target.kind === "audio" ||
-      // Only send video to mpv if LMSS is NOT handling it.
-      // MKV/AVI/TS are routed through LMSS (FFmpeg remux → <video>).
-      // Sending them to mpv at the same time causes dual audio.
-      // Exception: if LMSS failed (e.g. HEVC inside MKV), fall through to mpv.
       (target.kind === "video" &&
-        !isBrowserNativeVideo(target.path) &&
-        (!isLmssStreamable(target.path) || lmssFailed));
+        (layer === "Layer3_Native" || lmssFailed));
 
     if (!needsMpv) return;
     if (lastLoadedRef.current === target.path) return;
@@ -380,14 +399,20 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
     void mpvLoadFile(target.path).catch((e: unknown) =>
       reportError(toMessage(e)),
     );
-  }, [target, mpvReady, reportError, lmssFailed]);
+  }, [target, mpvReady, reportError, lmssFailed, routing?.layer, isRouting]);
 
-  // Render path detection
+  // Render path detection (Smart Router layer from ffprobe scorer)
   const isVideo = target?.kind === "video";
   const isAudio = target?.kind === "audio";
-  const useNativePath = isVideo && isBrowserNativeVideo(target?.path ?? "");
-  const useLmssPath = isVideo && !useNativePath && isLmssStreamable(target?.path ?? "") && !lmssFailed;
-  const useFallbackPath = isVideo && !useNativePath && !useLmssPath;
+  const playbackLayer = target
+    ? resolvePlaybackLayer(target.path, routing?.layer ?? null, isRouting)
+    : null;
+  const useNativePath = isVideo && playbackLayer === "Layer1_Direct";
+  const useLmssPath =
+    isVideo && playbackLayer === "Layer2_Stream" && !lmssFailed;
+  const useFallbackPath =
+    isVideo && (playbackLayer === "Layer3_Native" || lmssFailed);
+  const showRoutingState = isVideo && isRouting;
 
   const streamUrl = useNativePath && target ? toStreamUrl(target.path) : "";
   const title = target ? getFileName(target.path) : "";
@@ -395,6 +420,13 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
 
   return (
     <div className={styles.root}>
+
+      {showRoutingState && (
+        <div className={styles.emptyState} style={{ position: "absolute", zIndex: 20, inset: 0 }}>
+          <span className={styles.emptyIcon}>⏳</span>
+          <p className={styles.emptyText}>Analyzing media…</p>
+        </div>
+      )}
 
       {/* Native video — <video> + custom overlay controls */}
       {useNativePath && (
@@ -412,6 +444,7 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
           key={target.path}
           filePath={target.path}
           title={title}
+          transcode={routing?.metadata?.transcodeVideo}
           onError={(msg) => {
             if (msg === "LMSS_FALLBACK") {
               // Codec inside was incompatible — fall back to libmpv

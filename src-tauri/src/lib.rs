@@ -8,6 +8,7 @@ pub mod router;
 use std::sync::Arc;
 
 use http::{header::CONTENT_TYPE, response::Builder as ResponseBuilder, status::StatusCode};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -44,6 +45,9 @@ pub fn run() {
         .setup(move |app| {
             lmss::server::start_lmss_server(Arc::clone(&lmss_state));
 
+            let system_caps = core::system::SystemCapabilities::detect(&app.handle());
+            app.manage(system_caps);
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -61,7 +65,9 @@ pub fn run() {
             // CLI
             commands::cli::cli_get_open_path,
             // MPV probe
-            router::probe::mpv_libmpv_probe,
+            mpv::probe::mpv_libmpv_probe,
+            // Smart router
+            router::router_score_media,
             // LMSS
             lmss::server::lmss_port_get,
             // MPV playback (audio + future OpenGL render path)

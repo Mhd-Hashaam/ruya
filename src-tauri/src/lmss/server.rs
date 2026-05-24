@@ -104,6 +104,7 @@ struct HttpServerState {
 struct StreamQuery {
     path: String,
     ss: Option<f64>,
+    transcode: Option<bool>,
 }
 
 pub fn start_lmss_server(state: Arc<LmssState>) {
@@ -170,7 +171,7 @@ async fn stream_handler(
         }
     }
 
-    match spawn_fragmented_mp4_stream(&path, query.ss) {
+    match spawn_fragmented_mp4_stream(&path, query.ss, query.transcode.unwrap_or(false)) {
         Ok(stream) => ResponseBuilder::new()
             .status(StatusCode::OK)
             .header(CONTENT_TYPE, "video/mp4")

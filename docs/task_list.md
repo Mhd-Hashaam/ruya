@@ -39,7 +39,8 @@ This is the definitive, step-by-step master checklist for the implementation of 
 
 - `[x]` **Sub-Phase 1.2: FFmpeg Fragmented Remuxing Pipeline**
   - `[x]` Implement asynchronous subprocess execution in `src-tauri/src/lmss/remuxer.rs` using `tokio::process::Command`.
-  - `[x]` Configure FFmpeg remuxing arguments: `-i <PATH> -c:v copy -c:a aac -f mp4 -movflags frag_keyframe+empty_moov+faststart pipe:1`.
+  - `[x]` Configure FFmpeg remuxing arguments for stream-copy: `-i <PATH> -c:v copy -c:a aac -f mp4 -movflags frag_keyframe+empty_moov+faststart pipe:1`.
+  - `[ ]` Add `transcode_video` branch: `-c:v libx264 -preset superfast -tune zerolatency -crf 23 -pix_fmt yuv420p`.
   - `[x]` Implement chunked streaming from FFmpeg stdout to write frames directly into the Axum HTTP response stream.
 
 - `[x]` **Sub-Phase 1.3: Stream Interruption & Cancellation Guard**
@@ -53,19 +54,19 @@ This is the definitive, step-by-step master checklist for the implementation of 
 ## Phase 2: The Smart Media Router & Scorer Matrix
 **Goal:** Build the ffprobe-driven media analyzer, system profiling diagnostics, and the dynamic performance routing scorer matrix.
 
-- `[ ]` **Sub-Phase 2.1: Codec Inspection & System Profiling**
-  - `[ ]` Write system capability checks in `src-tauri/src/core/system.rs` (detect active hardware acceleration hooks and HDR-ready screens).
-  - `[ ]` Build the async ffprobe executor in `src-tauri/src/router/probe.rs` to output track specs, bitrates, subtitles, and color metrics in JSON format.
+- `[x]` **Sub-Phase 2.1: Codec Inspection & System Profiling**
+  - `[x]` Write system capability checks in `src-tauri/src/core/system.rs` (detect active hardware acceleration hooks and HDR-ready screens).
+  - `[x]` Build the async ffprobe executor in `src-tauri/src/router/probe.rs` to output track specs, bitrates, subtitles, and color metrics in JSON format.
 
-- `[ ]` **Sub-Phase 2.2: Performance Scorer Decision Matrix**
-  - `[ ]` Implement `src-tauri/src/router/scorer.rs` to execute scoring logic based on system hardware specs.
-  - `[ ]` Return scores: Layer 1 (H.264/VP9/AV1 MP4/WebM -> Score >= 90), Layer 2 (MKV browser codecs -> Score 60-89), Layer 3 (HEVC/10-bit HDR/ASS subtitles -> Score < 60).
-  - `[ ]` Bind the scoring payload structure: `{ score: u8, layer: PlaybackLayer, metadata: MediaMetadata }`.
+- `[x]` **Sub-Phase 2.2: Performance Scorer Decision Matrix**
+  - `[x]` Implement `src-tauri/src/router/scorer.rs` to execute scoring logic based on system hardware specs.
+  - `[x]` Return scores: Layer 1 (H.264/VP9/AV1 MP4/WebM -> Score >= 90), Layer 2 (MKV browser codecs or HEVC transcode -> Score 60-89), Layer 3 (10-bit HDR/ASS subtitles/AV1 -> Score < 60).
+  - `[x]` Bind the scoring payload structure: `{ score: u8, layer: PlaybackLayer, metadata: MediaMetadata }`.
 
-- `[ ]` **Sub-Phase 2.3: Shell Router Integration**
-  - `[ ]` Create `src/core/state/playbackStore.ts` to manage routing, loading, and global volume settings.
-  - `[ ]` Hook up `src/features/shell/ShellLayout/` to mount the respective view module matching the routed playback layer.
-  - `[ ]` **Verification:** Open direct and incompatible media profiles, and verify that the console logs trace the correct scoring matrices and mount the targeted video surfaces.
+- `[x]` **Sub-Phase 2.3: Shell Router Integration**
+  - `[x]` Extend `src/core/state/playbackStore.ts` to manage routed playback layer and routing state via `openMediaFromPath`.
+  - `[x]` Hook up `src/features/shell/ShellLayout/` to mount the respective view module matching the detected media kind and routed playback layer.
+  - `[x]` **Verification:** Open direct and incompatible media profiles, and verify that the console logs trace the correct scoring matrices and mount the targeted video surfaces.
 
 ---
 

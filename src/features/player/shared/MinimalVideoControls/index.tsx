@@ -450,12 +450,13 @@ export const MinimalVideoControls = ({
       if (!canvas) return;
       
       // Use a singleton hidden video element to proxy the canvas stream into native PiP
-      let pipVideo = (window as Record<string, unknown>)._pipVideo as HTMLVideoElement | undefined;
+      const win = window as unknown as Record<string, unknown>;
+      let pipVideo = win._pipVideo as HTMLVideoElement | undefined;
       if (!pipVideo) {
         pipVideo = document.createElement("video");
         pipVideo.muted = true; // Audio is handled natively by mpv
         pipVideo.autoplay = true;
-        (window as Record<string, unknown>)._pipVideo = pipVideo;
+        win._pipVideo = pipVideo;
       }
       
       if (document.pictureInPictureElement === pipVideo) {
