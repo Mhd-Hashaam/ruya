@@ -3,6 +3,7 @@
 import styles from "./index.module.css";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Undo, Redo, Play, Pause, Volume1, Volume2, VolumeX, ChevronDown, List } from "lucide-react";
 import { useVolumeBoost } from "@/core/media/useVolumeBoost";
 import { VolumeControl } from "@/ui/VolumeControl";
@@ -30,6 +31,8 @@ const SEEK_SECONDS = 5;
 // Props
 // ---------------------------------------------------------------------------
 
+export type VrLayoutMode = "mono" | "sbs" | "ou";
+
 interface MinimalVideoControlsProps {
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   title?: string;
@@ -37,6 +40,11 @@ interface MinimalVideoControlsProps {
   overrideDuration?: number;
   timeOffset?: number;
   onSeek?: (time: number) => void;
+  vrMode?: boolean;
+  vrLayout?: VrLayoutMode;
+  vrDisplayLabel?: string;
+  onVrToggle?: () => void;
+  onVrLayoutCycle?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,6 +58,11 @@ export const MinimalVideoControls = ({
   overrideDuration,
   timeOffset = 0,
   onSeek,
+  vrMode = false,
+  vrLayout = "mono",
+  vrDisplayLabel,
+  onVrToggle,
+  onVrLayoutCycle,
 }: MinimalVideoControlsProps) => {
   const setIsMinimized = usePlaybackStore((s) => s.setIsMinimized);
   const setCurrentTimeStore = usePlaybackStore((s) => s.setCurrentTime);
@@ -173,17 +186,21 @@ export const MinimalVideoControls = ({
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  const vrModeRef = useRef(vrMode);
+  useEffect(() => {
+    vrModeRef.current = vrMode;
+  }, [vrMode]);
+
   // -------------------------------------------------------------------------
   // Auto-hide + all wrapper mouse handlers
   // -------------------------------------------------------------------------
   const scheduleHide = useCallback(() => {
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
-      if (isPlayingRef.current) {
+        if (isPlayingRef.current) {
         setVisible(false);
-        // Hide cursor on the wrapper when controls auto-hide
         const wrapper = containerRef.current?.parentElement;
-        if (wrapper) wrapper.style.cursor = "none";
+        if (wrapper && !vrModeRef.current) wrapper.style.cursor = "none";
       }
     }, 3000);
   }, []);
@@ -215,7 +232,7 @@ export const MinimalVideoControls = ({
       if (userHid) {
         if (userHidResetTimer) clearTimeout(userHidResetTimer);
         userHidResetTimer = setTimeout(() => { userHid = false; }, 600);
-        if (dragStartXRef.current !== null) {
+        if (!vrModeRef.current && dragStartXRef.current !== null) {
           const el = videoRef?.current;
           if (!el || !isFinite(el.duration)) return;
           const dx = e.clientX - dragStartXRef.current;
@@ -226,9 +243,9 @@ export const MinimalVideoControls = ({
       }
 
       showControlsRef.current();
-      wrapper.style.cursor = "";
+      if (!vrModeRef.current) wrapper.style.cursor = "";
 
-      if (dragStartXRef.current !== null) {
+      if (!vrModeRef.current && dragStartXRef.current !== null) {
         const el = videoRef?.current;
         if (!el || !isFinite(el.duration)) return;
         const dx = e.clientX - dragStartXRef.current;
@@ -265,8 +282,7 @@ export const MinimalVideoControls = ({
           // User is hiding controls — set flag so mousemove doesn't re-show immediately
           userHid = true;
           if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-          // Hide cursor immediately
-          wrapper.style.cursor = "none";
+          if (!vrModeRef.current) wrapper.style.cursor = "none";
         }
         return next;
       });
@@ -310,6 +326,7 @@ export const MinimalVideoControls = ({
     };
 
     const onMouseDown = (e: MouseEvent) => {
+      if (vrModeRef.current) return;
       const overlay = containerRef.current;
       if (overlay && overlay.contains(e.target as Node)) return;
       const el = videoRef?.current;
@@ -319,8 +336,14 @@ export const MinimalVideoControls = ({
       wrapper.style.cursor = "ew-resize";
     };
 
-    const onMouseUp = () => { dragStartXRef.current = null; wrapper.style.cursor = ""; };
-    const onMouseLeave = () => { dragStartXRef.current = null; wrapper.style.cursor = ""; };
+    const onMouseUp = () => {
+      dragStartXRef.current = null;
+      if (!vrModeRef.current) wrapper.style.cursor = "";
+    };
+    const onMouseLeave = () => {
+      dragStartXRef.current = null;
+      if (!vrModeRef.current) wrapper.style.cursor = "";
+    };
 
     wrapper.addEventListener("mousemove", onMouseMove);
     wrapper.addEventListener("mouseenter", onMouseEnter);
@@ -518,7 +541,11 @@ export const MinimalVideoControls = ({
       {/* ── Controls overlay — hides/shows independently of OSD ── */}
       <div
         ref={containerRef}
-        className={[styles.root, visible ? styles.visible : styles.hidden].join(" ")}
+        className={[
+          styles.root,
+          visible ? styles.visible : styles.hidden,
+          vrMode ? styles.rootVrLook : "",
+        ].join(" ")}
       >
 
       {/* ── Top bar — back + title ── */}
@@ -654,6 +681,40 @@ export const MinimalVideoControls = ({
                 <path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
+
+            {onVrToggle && (
+              <>
+                <button
+                  type="button"
+                  className={[styles.iconBtn, vrMode ? styles.iconBtnActive : ""].join(" ")}
+                  onClick={onVrToggle}
+                  aria-label={vrMode ? "Exit 360 view" : "360 view"}
+                  title={vrMode ? "Exit 360°" : "360° panorama"}
+                >
+                  <Image
+                    src={vrMode ? "/Assets/VR active.webp" : "/Assets/VR unactive.webp"}
+                    alt=""
+                    width={18}
+                    height={18}
+                    className={styles.vrIcon}
+                    unoptimized
+                  />
+                </button>
+                {vrMode && onVrLayoutCycle && (
+                  <button
+                    type="button"
+                    className={styles.iconBtn}
+                    onClick={onVrLayoutCycle}
+                    aria-label="VR layout"
+                    title={`VR mode: ${vrDisplayLabel ?? vrLayout.toUpperCase()}`}
+                  >
+                    <span className={styles.vrLayoutLabel}>
+                      {vrDisplayLabel ?? vrLayout.toUpperCase()}
+                    </span>
+                  </button>
+                )}
+              </>
+            )}
 
             <button
               type="button"

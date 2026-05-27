@@ -20,6 +20,16 @@
   pointer-events: none;
 }
 
+/* VR look-drag: pass pointer events through the middle to PanoramaViewer */
+.rootVrLook {
+  pointer-events: none;
+}
+
+.rootVrLook .topBar,
+.rootVrLook .bottomBar {
+  pointer-events: auto;
+}
+
 /* Top gradient */
 .root::before {
   content: "";
@@ -348,6 +358,17 @@
 .smIcon {
   width: 18px;
   height: 18px;
+}
+
+.vrLayoutLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.vrIcon {
+  display: block;
+  object-fit: contain;
 }
 
 /* ── Volume OSD boosted state ── */

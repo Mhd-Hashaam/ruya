@@ -7,13 +7,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   mpvInit,
   mpvLoadFile,
-  mpvSetVolume,
-  mpvStop,
-  mpvTogglePause,
   mpvListenFrameReady,
   mpvGetFrameBinary,
 } from "@/core/platform/mpvClient";
 import {
+  applyVideoCors,
   isBrowserNativeVideo,
   isLmssStreamable,
   toStreamUrl,
@@ -22,7 +20,17 @@ import {
 } from "@/core/platform/videoStreamClient";
 import { usePlaybackStore } from "@/core/state/playbackStore";
 import type { PlaybackLayer } from "@/core/contracts/mediaTypes";
-import { MinimalVideoControls } from "@/features/player/shared/MinimalVideoControls";
+import {
+  MinimalVideoControls,
+  type VrLayoutMode,
+} from "@/features/player/shared/MinimalVideoControls";
+import { PanoramaViewer } from "@/features/player/vr/PanoramaViewer";
+import {
+  cycleVrProjectionAndLayout,
+  detectProjectionMode,
+  vrDisplayLabel,
+  type VrProjectionMode,
+} from "@/features/player/vr/vrProjection";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -88,12 +96,34 @@ const NativeVideoPlayer = ({
   startTime = 0,
 }: NativeVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [vrMode, setVrMode] = useState(false);
+  const [vrLayout, setVrLayout] = useState<VrLayoutMode>("mono");
+  const [vrProjection, setVrProjection] = useState<VrProjectionMode>("flat");
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !vrMode) return;
+    const applyDetect = () => {
+      if (el.videoWidth > 0) {
+        setVrProjection(detectProjectionMode(el.videoWidth, el.videoHeight));
+      }
+    };
+    applyDetect();
+    el.addEventListener("loadedmetadata", applyDetect);
+    el.addEventListener("resize", applyDetect);
+    return () => {
+      el.removeEventListener("loadedmetadata", applyDetect);
+      el.removeEventListener("resize", applyDetect);
+    };
+  }, [vrMode, streamUrl]);
 
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
+    applyVideoCors(el);
     el.src = streamUrl;
-    
+
     const onLoaded = () => {
       if (startTime > 0) {
         el.currentTime = startTime;
@@ -114,14 +144,60 @@ const NativeVideoPlayer = ({
   return (
     <div className={styles.videoWrap} data-player-root>
       <video
-        ref={videoRef}
-        className={styles.videoElement}
+        ref={(el) => {
+          videoRef.current = el;
+          setVideoEl(el);
+        }}
+        className={[
+          styles.videoElement,
+          vrMode ? styles.videoElementVrBacking : "",
+        ].join(" ")}
         crossOrigin="anonymous"
+        playsInline
         onError={() => onError("Video failed to load. Format may not be supported.")}
       />
+      {vrMode && videoEl && (
+        <PanoramaViewer
+          video={videoEl}
+          layout={vrLayout}
+          projection={vrProjection}
+          active={vrMode}
+        />
+      )}
       <MinimalVideoControls
         videoRef={videoRef}
         title={title}
+        vrMode={vrMode}
+        vrLayout={vrLayout}
+        vrDisplayLabel={vrDisplayLabel(vrProjection, vrLayout)}
+        onVrToggle={() => {
+          setVrMode((v) => {
+            const next = !v;
+            if (next) {
+              const el = videoRef.current;
+              if (el) {
+                applyVideoCors(el);
+                if (el.videoWidth > 0) {
+                  setVrProjection(detectProjectionMode(el.videoWidth, el.videoHeight));
+                }
+              }
+              console.info("[VR] toggle ON", {
+                streamUrl: streamUrl.slice(0, 80),
+                crossOrigin: el?.crossOrigin,
+                projection: vrProjection,
+              });
+              void el?.play().catch(() => {});
+            } else {
+              console.info("[VR] toggle OFF");
+            }
+            return next;
+          });
+        }}
+        onVrLayoutCycle={() => {
+          const next = cycleVrProjectionAndLayout(vrProjection, vrLayout);
+          setVrProjection(next.projection);
+          setVrLayout(next.layout);
+        }}
       />
     </div>
   );
@@ -145,6 +221,10 @@ interface LmssVideoPlayerProps {
 
 const LmssVideoPlayer = ({ filePath, title, onError, transcode }: LmssVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [vrMode, setVrMode] = useState(false);
+  const [vrLayout, setVrLayout] = useState<VrLayoutMode>("mono");
+  const [vrProjection, setVrProjection] = useState<VrProjectionMode>("flat");
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [lmssUrl, setLmssUrl] = useState<string | null>(null);
   const [trueDuration, setTrueDuration] = useState<number>(0);
   const [startTime, setStartTime] = useState<number>(0);
@@ -165,9 +245,10 @@ const LmssVideoPlayer = ({ filePath, title, onError, transcode }: LmssVideoPlaye
   useEffect(() => {
     const el = videoRef.current;
     if (!el || !lmssUrl) return;
-    
+
     // We must reset currentTime because the new stream starts at `startTime` natively.
     // However, the progress bar uses (startTime + el.currentTime).
+    applyVideoCors(el);
     el.currentTime = 0;
     el.src = lmssUrl;
 
@@ -189,6 +270,23 @@ const LmssVideoPlayer = ({ filePath, title, onError, transcode }: LmssVideoPlaye
     };
   }, [lmssUrl]);
 
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !vrMode) return;
+    const applyDetect = () => {
+      if (el.videoWidth > 0) {
+        setVrProjection(detectProjectionMode(el.videoWidth, el.videoHeight));
+      }
+    };
+    applyDetect();
+    el.addEventListener("loadedmetadata", applyDetect);
+    el.addEventListener("resize", applyDetect);
+    return () => {
+      el.removeEventListener("loadedmetadata", applyDetect);
+      el.removeEventListener("resize", applyDetect);
+    };
+  }, [vrMode, lmssUrl]);
+
   return (
     <div className={styles.videoWrap} data-player-root>
       {!lmssUrl && (
@@ -198,18 +296,66 @@ const LmssVideoPlayer = ({ filePath, title, onError, transcode }: LmssVideoPlaye
         </div>
       )}
       <video
-        ref={videoRef}
-        className={styles.videoElement}
-        style={{ opacity: lmssUrl ? 1 : 0 }}
+        ref={(el) => {
+          videoRef.current = el;
+          setVideoEl(el);
+        }}
+        className={[
+          styles.videoElement,
+          vrMode ? styles.videoElementVrBacking : "",
+          !lmssUrl ? styles.videoElementHidden : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         crossOrigin="anonymous"
+        playsInline
         onError={() => onError("LMSS_FALLBACK")}
       />
+      {vrMode && videoEl && lmssUrl && (
+        <PanoramaViewer
+          video={videoEl}
+          layout={vrLayout}
+          projection={vrProjection}
+          active={vrMode}
+        />
+      )}
       <MinimalVideoControls
         videoRef={videoRef}
         title={title}
         overrideDuration={trueDuration}
         timeOffset={startTime}
         onSeek={(time) => setStartTime(time)}
+        vrMode={vrMode}
+        vrLayout={vrLayout}
+        vrDisplayLabel={vrDisplayLabel(vrProjection, vrLayout)}
+        onVrToggle={() => {
+          setVrMode((v) => {
+            const next = !v;
+            if (next) {
+              const el = videoRef.current;
+              if (el) {
+                applyVideoCors(el);
+                if (el.videoWidth > 0) {
+                  setVrProjection(detectProjectionMode(el.videoWidth, el.videoHeight));
+                }
+              }
+              console.info("[VR] toggle ON (lmss)", {
+                lmssUrl: lmssUrl?.slice(0, 80),
+                crossOrigin: el?.crossOrigin,
+                projection: vrProjection,
+              });
+              void el?.play().catch(() => {});
+            } else {
+              console.info("[VR] toggle OFF");
+            }
+            return next;
+          });
+        }}
+        onVrLayoutCycle={() => {
+          const next = cycleVrProjectionAndLayout(vrProjection, vrLayout);
+          setVrProjection(next.projection);
+          setVrLayout(next.layout);
+        }}
       />
     </div>
   );
@@ -388,9 +534,8 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
     const layer = resolvePlaybackLayer(target.path, routing?.layer ?? null, isRouting);
 
     const needsMpv =
-      target.kind === "audio" ||
-      (target.kind === "video" &&
-        (layer === "Layer3_Native" || lmssFailed));
+      target.kind === "video" &&
+      (layer === "Layer3_Native" || lmssFailed);
 
     if (!needsMpv) return;
     if (lastLoadedRef.current === target.path) return;
@@ -403,7 +548,6 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
 
   // Render path detection (Smart Router layer from ffprobe scorer)
   const isVideo = target?.kind === "video";
-  const isAudio = target?.kind === "audio";
   const playbackLayer = target
     ? resolvePlaybackLayer(target.path, routing?.layer ?? null, isRouting)
     : null;
@@ -462,62 +606,6 @@ export const PlaybackViewport = ({ onBack }: PlaybackViewportProps) => {
           title={title}
           onBack={onBack}
         />
-      )}
-
-      {/* Audio */}
-      {isAudio && mpvReady && (
-        <div className={styles.audioView}>
-          <div className={styles.audioArt}>♪</div>
-          <div className={styles.audioInfo}>
-            <span className={styles.audioTitle}>{title}</span>
-          </div>
-          <div className={styles.audioControls}>
-            <button
-              type="button"
-              className={styles.audioBtn}
-              onClick={() =>
-                void mpvTogglePause().catch((e: unknown) =>
-                  reportError(toMessage(e)),
-                )
-              }
-            >
-              ⏯
-            </button>
-            <button
-              type="button"
-              className={styles.audioBtn}
-              onClick={() =>
-                void mpvStop()
-                  .then(() => { lastLoadedRef.current = null; })
-                  .catch((e: unknown) => reportError(toMessage(e)))
-              }
-            >
-              ⏹
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={130}
-              defaultValue={100}
-              className={styles.audioVolume}
-              aria-label="Volume"
-              onChange={(e) =>
-                void mpvSetVolume(Number(e.target.value)).catch(
-                  (err: unknown) => reportError(toMessage(err)),
-                )
-              }
-            />
-          </div>
-          {onBack && (
-            <button
-              type="button"
-              className={styles.backBtn}
-              onClick={onBack}
-            >
-              ‹ Back to library
-            </button>
-          )}
-        </div>
       )}
 
       {/* Empty state */}

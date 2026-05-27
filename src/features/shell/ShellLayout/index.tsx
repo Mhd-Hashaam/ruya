@@ -12,10 +12,11 @@ import { ImageFullscreenViewer } from "@/features/player/image/ImageFullscreenVi
 import { MusicNowPlaying } from "@/features/player/music/MusicNowPlaying";
 import { MiniPlayer } from "@/features/player/shared/MiniPlayer";
 import { PlaybackViewport } from "@/features/player/shared/PlaybackViewport";
+import { EditorPanel } from "@/features/editor/EditorPanel";
 import { SidebarDock } from "@/features/shell/SidebarDock";
 import { cliGetOpenPath, libraryRecentUpsert } from "@/core/platform/tauriClient";
 
-type View = "home" | "music" | "videos" | "playlists" | "player" | "images" | "vr-fixer" | "settings";
+type View = "home" | "music" | "videos" | "playlists" | "player" | "images" | "editor" | "settings";
 
 export const ShellLayout = () => {
   const [activeView, setActiveView] = useState<View>("home");
@@ -26,9 +27,10 @@ export const ShellLayout = () => {
   const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
   const navigateForOpenedPath = async (path: string) => {
+    setIsMinimized(false);
     await openMediaFromPath(path);
     const kind = usePlaybackStore.getState().target?.kind;
-    if (kind) {
+    if (kind && kind !== "unknown") {
       setActiveView(shellViewForMediaKind(kind) as View);
     }
   };
@@ -114,9 +116,15 @@ export const ShellLayout = () => {
             {activeView === "player" && (
               <PlaybackViewport onBack={handleBackToLibrary} />
             )}
-            {activeView === "music" && <MusicNowPlaying />}
-            {activeView === "images" && <ImageFullscreenViewer />}
+            {activeView === "music" && (
+              <MusicNowPlaying onBack={handleBackToLibrary} />
+            )}
+            {activeView === "images" && (
+              <ImageFullscreenViewer onBack={handleBackToLibrary} />
+            )}
           </>
+        ) : activeView === "editor" ? (
+          <EditorPanel />
         ) : (
           <HomeView onFileOpened={handleFileOpened} />
         )}

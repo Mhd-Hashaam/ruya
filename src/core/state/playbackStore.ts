@@ -45,6 +45,7 @@ interface PlaybackStoreState {
   updateRecentTime: (path: string, time: number, duration: number) => void;
   clearTarget: () => void;
   clearLastPlayback: () => void;
+  removeFromRecent: (path: string) => void;
 }
 
 export const usePlaybackStore = create<PlaybackStoreState>()(
@@ -99,7 +100,7 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
 
       saveLastPlayback: () => {
         const { target, currentTime, duration } = get();
-        if (target) {
+        if (target?.kind === "video") {
           set({
             lastPlayback: { path: target.path, currentTime, duration },
           });
@@ -136,13 +137,10 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
           get().updateRecentTime(target.path, currentTime, duration);
         }
 
-        const newLast = target
-          ? {
-              path: target.path,
-              currentTime,
-              duration,
-            }
-          : lastPlayback;
+        const newLast =
+          target?.kind === "video"
+            ? { path: target.path, currentTime, duration }
+            : lastPlayback;
 
         set({
           target: null,
@@ -156,6 +154,12 @@ export const usePlaybackStore = create<PlaybackStoreState>()(
       },
 
       clearLastPlayback: () => set({ lastPlayback: null }),
+
+      removeFromRecent: (path) => {
+        set((state) => ({
+          recentActivities: state.recentActivities.filter((a) => a.path !== path),
+        }));
+      },
     }),
     {
       name: "ruya-playback-storage",

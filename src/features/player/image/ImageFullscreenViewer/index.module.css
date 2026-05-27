@@ -1,0 +1,111 @@
+.root {
+  display: grid;
+  grid-template-rows: auto 1fr 220px;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-app-background);
+  color: var(--color-text-primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.backBtn {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+}
+
+.viewer {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-2);
+  touch-action: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.fullImage {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.openBtn {
+  border: 1px solid var(--color-brand-primary);
+  background: oklch(0.78 0.12 65 / 0.12);
+  color: var(--color-brand-primary);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  height: 100%;
+  padding: var(--space-8);
+}
+
+.emptyTitle {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+}
+
+.emptyText {
+  color: var(--color-text-secondary);
+}
+
+.hint {
+  position: absolute;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: oklch(0 0 0 / 0.55);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.filmstrip {
+  border-top: 1px solid var(--color-divider);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.filmstripTitle {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}

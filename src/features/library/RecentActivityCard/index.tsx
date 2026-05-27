@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styles from "./index.module.css";
 import { usePlaybackStore, RecentActivity } from "@/core/state/playbackStore";
 import { useThumbnail } from "@/core/media/useThumbnail";
 import Image from "next/image";
-import { Play, Music, Image as ImageIcon, Box } from "lucide-react";
+import { Play, Music, Image as ImageIcon, Box, Trash2 } from "lucide-react";
 
 interface RecentActivityCardProps {
   activity: RecentActivity;
@@ -15,8 +15,24 @@ interface RecentActivityCardProps {
 export const RecentActivityCard = ({ activity, onPlay }: RecentActivityCardProps) => {
   const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
   const setCurrentTimeStore = usePlaybackStore((s) => s.setCurrentTime);
+  const removeFromRecent = usePlaybackStore((s) => s.removeFromRecent);
   
   const thumbnail = useThumbnail(activity.path, activity.currentTime);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, [menuOpen]);
 
   const fileName = activity.path.split(/[\\/]/).pop() || "Unknown";
   const duration = activity.duration || 0;
@@ -33,8 +49,33 @@ export const RecentActivityCard = ({ activity, onPlay }: RecentActivityCardProps
     });
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuOpen(true);
+  };
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    removeFromRecent(activity.path);
+  };
+
   return (
-    <div className={styles.card} onClick={handlePlay} title={fileName}>
+    <div className={styles.card} onClick={handlePlay} onContextMenu={handleContextMenu} title={fileName}>
+      {menuOpen && (
+        <div 
+          ref={menuRef}
+          className={styles.contextMenu}
+          style={{ top: menuPos.y, left: menuPos.y > window.innerHeight - 50 ? menuPos.x - 120 : menuPos.x, position: 'fixed', zIndex: 9999 }}
+        >
+          <button type="button" className={styles.menuItem} onClick={handleRemove}>
+            <Trash2 size={16} />
+            <span>Remove from Recent</span>
+          </button>
+        </div>
+      )}
       <div className={styles.thumbnailArea}>
         {isVideo ? (
           thumbnail ? (

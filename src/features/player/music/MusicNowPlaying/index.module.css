@@ -1,0 +1,167 @@
+.root {
+  display: grid;
+  grid-template-columns: 280px 1fr 260px;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-app-background);
+  color: var(--color-text-primary);
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-6);
+  gap: var(--space-5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.backBtn {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.backBtn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.openBtn {
+  border: 1px solid var(--color-brand-primary);
+  background: oklch(0.78 0.12 65 / 0.12);
+  color: var(--color-brand-primary);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.openBtn:hover {
+  background: oklch(0.78 0.12 65 / 0.2);
+}
+
+.artwork {
+  position: relative;
+  width: min(360px, 70%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface-3);
+  box-shadow: var(--shadow-elevation-2);
+}
+
+.artwork img {
+  object-fit: cover;
+}
+
+.artworkPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  color: var(--color-text-tertiary);
+}
+
+.meta {
+  text-align: center;
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin: 0;
+}
+
+.artist {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.album {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.visualizer {
+  height: 72px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.transport button {
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.transport button:hover {
+  background: var(--color-surface-3);
+}
+
+.playBtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.progress {
+  flex: 1;
+  accent-color: var(--color-brand-primary);
+}
+
+.volumeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.volume {
+  flex: 1;
+  accent-color: var(--color-brand-primary);
+}

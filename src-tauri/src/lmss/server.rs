@@ -61,16 +61,22 @@ use http::{
 use serde::Deserialize;
 use tokio::net::TcpListener;
 
-/// Add CORS + range headers that every stream response needs.
-/// ACCESS_CONTROL_ALLOW_ORIGIN: * is required so the WebView can call
-/// canvas.getImageData() on frames drawn from stream:// URLs.
-/// Without it the canvas is "tainted" and thumbnail generation fails with
-/// a SecurityError even though the file is local.
-fn base_response(mime: &'static str) -> ResponseBuilder {
-    ResponseBuilder::new()
-        .header(CONTENT_TYPE, mime)
-        .header(ACCEPT_RANGES, "bytes")
+/// CORS headers required for canvas/WebGL sampling of cross-origin media
+/// (stream://, http://127.0.0.1 LMSS, thumbnails). Without CORP + ACAO the
+/// canvas is "tainted" and Three.js texSubImage2D fails with SecurityError.
+fn apply_cors(builder: ResponseBuilder) -> ResponseBuilder {
+    builder
         .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header("Cross-Origin-Resource-Policy", "cross-origin")
+}
+
+/// Add CORS + range headers that every stream:// protocol response needs.
+fn base_response(mime: &'static str) -> ResponseBuilder {
+    apply_cors(
+        ResponseBuilder::new()
+            .header(CONTENT_TYPE, mime)
+            .header(ACCEPT_RANGES, "bytes"),
+    )
 }
 use http_range::HttpRange;
 use percent_encoding::percent_decode_str;
@@ -161,23 +167,25 @@ async fn stream_handler(
         match HttpRange::parse(range, file_len) {
             Ok(ranges) => log::debug!("lmss range request received: {} ranges", ranges.len()),
             Err(_) => {
-                return ResponseBuilder::new()
-                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
-                    .header(CONTENT_RANGE, format!("bytes */{file_len}"))
-                    .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .body(Body::empty())
-                    .unwrap_or_else(|_| StatusCode::RANGE_NOT_SATISFIABLE.into_response());
+                return apply_cors(
+                    ResponseBuilder::new()
+                        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                        .header(CONTENT_RANGE, format!("bytes */{file_len}")),
+                )
+                .body(Body::empty())
+                .unwrap_or_else(|_| StatusCode::RANGE_NOT_SATISFIABLE.into_response());
             }
         }
     }
 
     match spawn_fragmented_mp4_stream(&path, query.ss, query.transcode.unwrap_or(false)) {
-        Ok(stream) => ResponseBuilder::new()
-            .status(StatusCode::OK)
-            .header(CONTENT_TYPE, "video/mp4")
-            .header(ACCEPT_RANGES, "bytes")
-            .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-            .body(Body::from_stream(stream))
+        Ok(stream) => apply_cors(
+            ResponseBuilder::new()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, "video/mp4")
+                .header(ACCEPT_RANGES, "bytes"),
+        )
+        .body(Body::from_stream(stream))
             .unwrap_or_else(|err| {
                 lmss_error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -191,12 +199,13 @@ async fn stream_handler(
 
 fn lmss_error_response(status: StatusCode, code: &str, message: &str) -> Response {
     let body = format!("{code}: {message}");
-    ResponseBuilder::new()
-        .status(status)
-        .header(CONTENT_TYPE, "text/plain")
-        .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+    apply_cors(
+        ResponseBuilder::new()
+            .status(status)
+            .header(CONTENT_TYPE, "text/plain"),
+    )
+    .body(Body::from(body))
+    .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 #[tauri::command]
@@ -225,6 +234,26 @@ fn mime_for_path(path: &str) -> &'static str {
         "video/mp2t"
     } else if lower.ends_with(".ogg") || lower.ends_with(".ogv") {
         "video/ogg"
+    } else if lower.ends_with(".mp3") {
+        "audio/mpeg"
+    } else if lower.ends_with(".flac") {
+        "audio/flac"
+    } else if lower.ends_with(".wav") {
+        "audio/wav"
+    } else if lower.ends_with(".aac") || lower.ends_with(".m4a") {
+        "audio/mp4"
+    } else if lower.ends_with(".opus") {
+        "audio/opus"
+    } else if lower.ends_with(".ogg") {
+        "audio/ogg"
+    } else if lower.ends_with(".webp") {
+        "image/webp"
+    } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+        "image/jpeg"
+    } else if lower.ends_with(".png") {
+        "image/png"
+    } else if lower.ends_with(".gif") {
+        "image/gif"
     } else {
         "application/octet-stream"
     }
@@ -277,11 +306,12 @@ pub fn handle_stream_request(
         Ok(f) => f,
         Err(e) => {
             log::warn!("stream: cannot open {:?}: {e}", file_path);
-            return Ok(ResponseBuilder::new()
-                .status(StatusCode::NOT_FOUND)
-                .header(CONTENT_TYPE, "text/plain")
-                .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                .body(format!("not found: {e}").into_bytes())?);
+            return Ok(apply_cors(
+                ResponseBuilder::new()
+                    .status(StatusCode::NOT_FOUND)
+                    .header(CONTENT_TYPE, "text/plain"),
+            )
+            .body(format!("not found: {e}").into_bytes())?);
         }
     };
 
@@ -306,11 +336,12 @@ pub fn handle_stream_request(
         let ranges = match HttpRange::parse(range_str, file_len) {
             Ok(r) => r,
             Err(_) => {
-                return Ok(ResponseBuilder::new()
-                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
-                    .header(CONTENT_RANGE, format!("bytes */{file_len}"))
-                    .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .body(vec![])?);
+                return Ok(apply_cors(
+                    ResponseBuilder::new()
+                        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                        .header(CONTENT_RANGE, format!("bytes */{file_len}")),
+                )
+                .body(vec![])?);
             }
         };
 

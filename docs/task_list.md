@@ -1,4 +1,4 @@
-﻿# Ruya Engine - Master Task List
+# Ruya Engine - Master Task List
 
 This is the definitive, step-by-step master checklist for the implementation of the Ruya Multimedia Engine. It decomposes the phases of the `Ruya Masterplan.md` into highly granular, actionable, and testable checklist items.
 
@@ -73,22 +73,22 @@ This is the definitive, step-by-step master checklist for the implementation of 
 ## Phase 3: The Three Playback Stations
 **Goal:** Build beautiful, responsive, and custom interfaces for Music, Videos, and Images. Create the Web Audio gapless engine and lay standard flat-video structures for VR.
 
-- `[ ]` **Sub-Phase 3.1: The Music Player Station (Web Audio API Engine)**
-  - `[ ]` Build the Spotify-vibe Now Playing screen, track list views, and queue managers inside `src/features/player/music/`.
-  - `[ ]` Create `src/features/player/music/audioEngine.ts` utilizing browser `AudioContext` controls.
-  - `[ ]` Implement double-buffering using two parallel `AudioBufferSourceNode` blocks to schedule gapless crossovers.
-  - `[ ]` Integrate pre-fetching: decode the next song file into the standby buffer 5 seconds before the current active source node terminates.
-  - `[ ]` Draw visualizers and extract cover art vectors using Rust metadata commands.
+- `[x]` **Sub-Phase 3.1: The Music Player Station (Web Audio API Engine)**
+  - `[x]` Build the Spotify-vibe Now Playing screen, track list views, and queue managers inside `src/features/player/music/`.
+  - `[x]` Create `src/features/player/music/audioEngine.ts` utilizing browser `AudioContext` controls.
+  - `[x]` Implement double-buffering using two parallel `AudioBufferSourceNode` blocks to schedule gapless crossovers.
+  - `[x]` Integrate pre-fetching: decode the next song file into the standby buffer 5 seconds before the current active source node terminates.
+  - `[x]` Draw visualizers and extract cover art vectors using Rust metadata commands.
 
-- `[ ]` **Sub-Phase 3.2: The Image Gallery Station (RAW & HEIC Engine)**
-  - `[ ]` Create `src-tauri/src/editor/proxy.rs` raw image translation methods (using `libraw` or `image` crates).
-  - `[ ]` Expose a custom Tauri asset loading protocol (`ruya://thumbnail?path=...`) to safely stream WebP thumbnails to the client.
-  - `[ ]` Build a Lightroom-style infinite grid layout with zoom/pan features in `src/features/player/image/`.
+- `[x]` **Sub-Phase 3.2: The Image Gallery Station (RAW & HEIC Engine)**
+  - `[x]` Create `src-tauri/src/editor/proxy.rs` raw image translation methods (using `libraw` or `image` crates).
+  - `[x]` Expose a custom Tauri asset loading protocol (`ruya://thumbnail?path=...`) to safely stream WebP thumbnails to the client.
+  - `[x]` Build a Lightroom-style infinite grid layout with zoom/pan features in `src/features/player/image/`.
 
-- `[ ]` **Sub-Phase 3.3: Flat-First Video & Panoramic WebXR**
-  - `[ ]` Build `<MinimalVideoControls>` in `src/features/player/shared/` containing seek bars and custom menus.
-  - `[ ]` Implement the Three.js 3D sphere panorama projection canvas inside `src/features/player/vr/`.
-  - `[ ]` Bind standard `<video>` output as a dynamic `VideoTexture` layer projected onto the 3D sphere.
+- `[x]` **Sub-Phase 3.3: Flat-First Video & Panoramic WebXR**
+  - `[x]` Build `<MinimalVideoControls>` in `src/features/player/shared/` containing seek bars and custom menus.
+  - `[x]` Implement the Three.js 3D sphere panorama projection canvas inside `src/features/player/vr/`.
+  - `[x]` Bind standard `<video>` output as a dynamic `VideoTexture` layer projected onto the 3D sphere.
   - `[ ]` **Verification:** Verify gapless transitions between sample tracks. Load raw and large images inside the gallery grid. Ensure 360-degree flat pan controls function perfectly.
 
 ---
@@ -113,42 +113,66 @@ This is the definitive, step-by-step master checklist for the implementation of 
 ## Phase 5: NLE Editor & Universal Actor-Based Job System
 **Goal:** Build a non-blocking, actor-driven background job coordinator, implement SQLite task storage for crash-recovery, secure process bounds with Win32 Job Objects, and render timeline canvases.
 
-- `[ ]` **Sub-Phase 5.1: Actor-Based Concurrency System**
+> **Deferred (per product pivot):** 5.1 Actor system, 5.2 SQLite queue, 5.3 Win32 Job Objects, and Phase 4 native MPV — editor MVP uses direct FFmpeg export without the job actor.
+
+- `[ ]` **Sub-Phase 5.1: Actor-Based Concurrency System** *(deferred)*
   - `[ ]` Build the asynchronous Tokio channel Actor in `src-tauri/src/jobs/actor.rs` using message-passing channels (`mpsc`).
   - `[ ]` Define message types: `StartJob`, `CancelJob`, `PauseJob`, `QueryQueue`.
   - `[ ]` Isolate queue state manipulation exclusively to the Actor thread to prevent concurrency locks.
 
-- `[ ]` **Sub-Phase 5.2: SQLite Persistent Queue Serialization**
+- `[ ]` **Sub-Phase 5.2: SQLite Persistent Queue Serialization** *(deferred)*
   - `[ ]` Setup SQLite schema tables inside `src-tauri/src/jobs/serialization.rs` using the `rusqlite` crate.
   - `[ ]` Persist active job configurations, track offsets, status flags, and progress milestones.
   - `[ ]` Write app-startup queue audits to scan for interrupted processes and mark crashed tasks as `Interrupted` to support graceful resumes.
 
-- `[ ]` **Sub-Phase 5.3: Process Isolation & Win32 Job Objects**
+- `[ ]` **Sub-Phase 5.3: Process Isolation & Win32 Job Objects** *(deferred)*
   - `[ ]` Write Win32 process mapping controls in `src-tauri/src/jobs/process_guard.rs`.
   - `[ ]` Bind dynamic background subprocesses to Win32 Job Objects configured with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`.
   - `[ ]` Bind spawned FFmpeg subprocess handles immediately to ensure zero process leaks on application exits.
 
-- `[ ]` **Sub-Phase 5.4: Timeline Sprite Canvas Rendering**
-  - `[ ]` Build the sprite sheet generator in `src-tauri/src/editor/thumbnails.rs` to output tiled WebP sheets.
-  - `[ ]` Build a virtualized HTML5 canvas timeline in `src/features/editor/timeline/` to render sprite maps without DOM performance hitches.
-  - `[ ]` **Verification:** Start a heavy video transcode task. Force-kill the Ruya application and confirm the FFmpeg process is immediately terminated by the OS. Re-open the app and verify the job is logged as `Interrupted` and can be resumed.
+- `[x]` **Sub-Phase 5.4: Timeline Sprite Canvas Rendering (MVP)**
+  - `[x]` Build the sprite sheet generator in `src-tauri/src/editor/thumbnails.rs` to output tiled WebP sheets (with `spriteDataUrl` for WebView).
+  - `[x]` Build HTML5 canvas timeline in `src/features/editor/TimelineCanvas/` with scrub playhead, zoom, and sprite thumbs.
+  - `[x]` Wire `EditorPanel` (import, preview, split/trim/delete, export MP4) via `editorStore` + shell **Editor** dock entry.
+  - `[ ]` **Verification:** Import → edit → export end-to-end on a sample MP4/MKV. Job-system kill/resume checks remain deferred until 5.1–5.3.
 
 ---
 
-## Phase 6: VR Projection Fixer & Cache Budget Manager
+## Phase 6: AV1 Thread Control & CPU Optimization
+**Goal:** Implement non-destructive, CPU-aware AV1 encoding controls via FFmpeg `libsvtav1`, exposing thread limit controls and resolution preservation to prevent system lockups during conversion.
+
+- `[ ]` **Sub-Phase 6.1: Rust CPU Detection & Topography**
+  - `[ ]` Create `src-tauri/src/system/cpu.rs`.
+  - `[ ]` Detect physical cores and logical threads.
+  - `[ ]` Expose an IPC command returning `CpuInfo` struct (physical cores, logical threads).
+
+- `[ ]` **Sub-Phase 6.2: Frontend Thread & Resolution Controls**
+  - `[ ]` Expand `FileUtilitiesPicker` AV1 conversion dialog.
+  - `[ ]` Add a thread selection dropdown (Low CPU, Balanced, High Performance, Maximum) mapped to the detected logical thread count.
+  - `[ ]` Add a Resolution Strategy dropdown (Keep Original, Reduce to 1440p, 1080p, 720p).
+
+- `[ ]` **Sub-Phase 6.3: FFmpeg Execution & Job State Integration**
+  - `[ ]` Modify `editor_convert_av1` in `src-tauri/src/editor/export.rs` to accept `threads` and `resolution` arguments.
+  - `[ ]` Inject `-threads N` and appropriate video scaling flags into the `ffmpeg` subprocess command.
+  - `[ ]` Ensure `-progress pipe:1` remains intact and progress flows to the UI.
+  - `[ ]` **Verification:** Perform AV1 conversion using "Low CPU" and verify CPU usage stays below maximum, allowing smooth system multitasking.
+
+---
+
+## Phase 7: VR Projection Fixer & Cache Budget Manager
 **Goal:** Build the declarative JSON filter graph compiler, generate rapid test proxies, and manage the temporary storage budget with a strict LRU garbage collection scheduler.
 
-- `[ ]` **Sub-Phase 6.1: Serializable JSON Filter Graphs**
+- `[ ]` **Sub-Phase 7.1: Serializable JSON Filter Graphs**
   - `[ ]` Define the Rust JSON graph parser in `src-tauri/src/editor/vr_pipeline.rs` (modeling node arrays and edge configurations).
   - `[ ]` Write the graph compiler to translate node schemas into complex FFmpeg command line parameters (`-filter_complex`).
   - `[ ]` Integrate visual graph editing states into the React editor.
 
-- `[ ]` **Sub-Phase 6.2: Low-Latency representative Proxies**
+- `[ ]` **Sub-Phase 7.2: Low-Latency representative Proxies**
   - `[ ]` Implement proxy extraction logic in `src-tauri/src/editor/proxy.rs` to fetch 2-second clips from the center of heavy video tracks.
   - `[ ]` Compile 5 different test projection graphs on the proxy file concurrently.
   - `[ ]` Build the 5-way visual grid panel in `src/features/editor/vr/` to let users compare projection fixes instantly.
 
-- `[ ]` **Sub-Phase 6.3: LRU Cache Budget Manager**
+- `[ ]` **Sub-Phase 7.3: LRU Cache Budget Manager**
   - `[ ]` Implement the cache inspection daemon in `src-tauri/src/cache/budget.rs` to audit `%TEMP%/ruya_cache`.
   - `[ ]` Define a configurable storage budget ceiling (e.g. Max 20GB).
   - `[ ]` Implement Least Recently Used (LRU) file deletion algorithms to purge oldest cache visual assets automatically.

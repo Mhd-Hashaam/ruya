@@ -2,6 +2,7 @@
 
 import React from "react";
 import styles from "./index.module.css";
+import { detectMediaKind } from "@/core/media/mediaKind";
 import { usePlaybackStore } from "@/core/state/playbackStore";
 import { useThumbnail } from "@/core/media/useThumbnail";
 import Image from "next/image";
@@ -26,7 +27,7 @@ export const ContinueWatchingCard = ({ onPlay }: ContinueWatchingCardProps) => {
   
   const thumbnail = useThumbnail(lastPlayback?.path || "", lastPlayback?.currentTime);
 
-  if (!lastPlayback) return null;
+  if (!lastPlayback || detectMediaKind(lastPlayback.path) !== "video") return null;
 
   const fileName = lastPlayback.path.split(/[\\/]/).pop() || "Unknown";
   const progress = lastPlayback.duration > 0 ? (lastPlayback.currentTime / lastPlayback.duration) * 100 : 0;

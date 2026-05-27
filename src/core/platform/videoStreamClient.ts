@@ -85,6 +85,29 @@ export function toStreamUrl(filePath: string): string {
   return convertFileSrc(filePath, "stream");
 }
 
+/**
+ * Must be set on <video> before assigning src so canvas/WebGL (VR, thumbnails)
+ * can sample frames without a SecurityError (tainted canvas).
+ *
+ * If the element already started loading without CORS, reload the current src
+ * so the browser fetches with Origin (anonymous) and CORP headers apply.
+ */
+export function applyVideoCors(video: HTMLVideoElement): void {
+  const prev = video.crossOrigin;
+  video.crossOrigin = "anonymous";
+  const src = video.currentSrc || video.src;
+  if (!src || prev === "anonymous") return;
+
+  const t = video.currentTime;
+  const wasPaused = video.paused;
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+  video.src = src;
+  video.currentTime = t;
+  if (!wasPaused) void video.play().catch(() => {});
+}
+
 export async function toLmssStreamUrl(
   filePath: string,
   startTime: number = 0,

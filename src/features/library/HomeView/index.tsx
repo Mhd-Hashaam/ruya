@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import styles from "./index.module.css";
 import { ContinueWatchingCard } from "@/features/library/ContinueWatchingCard";
+import { OpenActions } from "@/features/library/OpenActions";
 import { RecentActivities } from "@/features/library/RecentActivities";
 
 interface HomeViewProps {
@@ -29,6 +30,10 @@ export const HomeView = ({ onFileOpened }: HomeViewProps) => {
             />
           </div>
           <h1 className={styles.brandTitle}>Ruya</h1>
+        </div>
+
+        <div className={styles.openRow}>
+          <OpenActions onFileOpened={onFileOpened} />
         </div>
 
         <div className={styles.hubContent}>

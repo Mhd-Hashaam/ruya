@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod core;
+pub mod editor;
 pub mod library;
 pub mod lmss;
 pub mod mpv;
@@ -20,6 +21,7 @@ pub fn run() {
         .manage(commands::cli_types::CliOpenPath(std::sync::Mutex::new(
             commands::cli_types::read_open_path(),
         )))
+        .manage(editor::export::EditorExportState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         // -----------------------------------------------------------------------
@@ -41,6 +43,22 @@ pub fn run() {
                     );
                 }
             }
+        })
+        .register_asynchronous_uri_scheme_protocol("ruya", |_ctx, request, responder| {
+            tauri::async_runtime::spawn(async move {
+                let response = match editor::proxy::handle_ruya_thumbnail_request(request).await {
+                    Ok(response) => response,
+                    Err(e) => {
+                        log::error!("ruya protocol error: {e}");
+                        ResponseBuilder::new()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .header(CONTENT_TYPE, "text/plain")
+                            .body(e.to_string().into_bytes())
+                            .unwrap_or_default()
+                    }
+                };
+                responder.respond(response);
+            });
         })
         .setup(move |app| {
             lmss::server::start_lmss_server(Arc::clone(&lmss_state));
@@ -68,6 +86,15 @@ pub fn run() {
             mpv::probe::mpv_libmpv_probe,
             // Smart router
             router::router_score_media,
+            router::router_probe_audio_metadata,
+            editor::editor_generate_thumbnail,
+            editor::editor_timeline_sprite,
+            editor::export::editor_export_timeline,
+            editor::export::editor_export_status,
+            editor::export::editor_extract_audio,
+            editor::export::editor_remove_audio,
+            editor::export::editor_replace_audio,
+            editor::export::editor_convert_av1,
             // LMSS
             lmss::server::lmss_port_get,
             // MPV playback (audio + future OpenGL render path)

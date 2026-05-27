@@ -6,13 +6,15 @@ import {
   IconMusic, 
   IconVideo, 
   IconPlaylist, 
-  IconViewportWide, 
+  IconCut,
   IconPhoto,
   IconPlus
 } from "@tabler/icons-react";
 import { FloatingDock, FloatingDockItem } from "@/ui/FloatingDock";
 import { DOCK_CONFIG } from "@/ui/FloatingDock/dockConfig";
+import { shellViewForMediaKind } from "@/core/media/shellRouting";
 import { useFileOpen } from "@/core/hooks/useFileOpen";
+import { usePlaybackStore } from "@/core/state/playbackStore";
 import styles from "./index.module.css";
 
 interface SidebarDockProps {
@@ -63,14 +65,18 @@ export const SidebarDock = ({
       onClick: () => onViewChange("playlists"),
     },
     {
-      title: "VR Fixer",
-      icon: <IconViewportWide />,
-      onClick: () => onViewChange("vr-fixer"),
+      title: "Editor",
+      icon: <IconCut />,
+      onClick: () => onViewChange("editor"),
     },
     {
       title: "Open File",
       icon: <IconPlus />,
-      onClick: () => void handleOpenFile(() => onViewChange("player")),
+      onClick: () =>
+        void handleOpenFile(() => {
+          const kind = usePlaybackStore.getState().target?.kind;
+          if (kind) onViewChange(shellViewForMediaKind(kind));
+        }),
     },
   ];
 

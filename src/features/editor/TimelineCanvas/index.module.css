@@ -1,0 +1,14 @@
+.scroll {
+  flex: 1;
+  min-height: 120px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #0e1016;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: crosshair;
+}
+
+.canvas {
+  display: block;
+}
