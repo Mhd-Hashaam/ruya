@@ -350,16 +350,27 @@ pub async fn editor_convert_av1(
     output_path: String,
     preset: u8,
     crf: u8,
+    threads: u32,
+    resolution: String,
 ) -> Result<()> {
     set_status(&state, ExportStatus { active: true, progress_percent: 0.0, message: "Preparing AV1 conversion...".to_string(), error: None });
     let probe = ffprobe_file(&input_path).await?;
     let mut cmd = Command::new("ffmpeg");
-    cmd.arg("-y")
-       .arg("-i").arg(&input_path)
-       .arg("-c:v").arg("libsvtav1")
+    cmd.arg("-y").arg("-i").arg(&input_path);
+
+    if resolution != "original" && !resolution.is_empty() {
+        cmd.arg("-vf").arg(format!("scale={resolution}"));
+    }
+
+    cmd.arg("-c:v").arg("libsvtav1")
        .arg("-preset").arg(preset.to_string())
-       .arg("-crf").arg(crf.to_string())
-       .arg("-c:a").arg("libopus")
+       .arg("-crf").arg(crf.to_string());
+       
+    if threads > 0 {
+        cmd.arg("-svtav1-params").arg(format!("lp={}", threads));
+    }
+
+    cmd.arg("-c:a").arg("libopus")
        .arg("-b:a").arg("96k")
        .arg("-map").arg("0")
        .arg("-c:s").arg("copy")

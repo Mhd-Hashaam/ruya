@@ -5,6 +5,7 @@ pub mod library;
 pub mod lmss;
 pub mod mpv;
 pub mod router;
+pub mod system;
 
 use std::sync::Arc;
 
@@ -112,6 +113,7 @@ pub fn run() {
             // MPV SW render (fallback for unsupported formats until M2 OpenGL)
             mpv::commands::mpv_get_frame,
             mpv::commands::mpv_backend_state,
+            system::cpu::get_cpu_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

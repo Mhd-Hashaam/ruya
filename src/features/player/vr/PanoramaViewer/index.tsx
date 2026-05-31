@@ -70,31 +70,9 @@ export const PanoramaViewer = ({ video, layout, projection, active }: PanoramaVi
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const textureReady = useVideoTextureReady(video, active);
   const setupGenRef = useRef(0);
-  const [debugSnapshot, setDebugSnapshot] = useState<VrDiagnosticsSnapshot>(() =>
-    emptyDiagnostics("idle", layout, projection, false),
-  );
-  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
-  /** Portal target — must sit above MinimalVideoControls (z-index 10), not inside panorama (z-index 2). */
-  const [hudHost, setHudHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!active) {
-      setHudHost(null);
-      return;
-    }
-    const resolveHost = () => {
-      const host = mountRef.current?.closest("[data-player-root]");
-      if (host instanceof HTMLElement) setHudHost(host);
-    };
-    resolveHost();
-    const id = requestAnimationFrame(resolveHost);
-    return () => cancelAnimationFrame(id);
-  }, [active]);
-
-  useEffect(() => {
-    if (!active) {
-      setDebugSnapshot(emptyDiagnostics("inactive", layout, projection, textureReady));
-      setPreviewDataUrl(null);
       return;
     }
     vrLog("viewer active", {
@@ -109,17 +87,6 @@ export const PanoramaViewer = ({ video, layout, projection, active }: PanoramaVi
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount || !active || !textureReady) {
-      setDebugSnapshot((s) => ({
-        ...emptyDiagnostics(
-          !active ? "waiting-inactive" : !textureReady ? "waiting-video" : "waiting-mount",
-          layout,
-          projection,
-          textureReady,
-        ),
-        mountSize: mount
-          ? { w: mount.clientWidth, h: mount.clientHeight }
-          : s.mountSize,
-      }));
       return;
     }
 
@@ -158,32 +125,8 @@ export const PanoramaViewer = ({ video, layout, projection, active }: PanoramaVi
       return;
     }
 
-    const publishDebug = (phase: string, paint: VrDiagnosticsSnapshot["paint"] = null) => {
-      const pixels = sourceCanvas.width > 0 ? probeCanvasPixels(sourceCanvas, sourceCtx) : null;
-      if (pixels?.isTainted) stats.framesTainted += 1;
-      if (pixels?.isBlack && paint?.ok) stats.framesBlack += 1;
-
-      setDebugSnapshot({
-        ts: Date.now(),
-        phase,
-        video: probeVideo(video),
-        runtime: probeRuntime(),
-        paint,
-        pixels,
-        webgl: {
-          rendererReady: Boolean(renderer),
-          textureMode,
-          framesPainted: stats.framesPainted,
-          framesBlack: stats.framesBlack,
-          framesTainted: stats.framesTainted,
-          useCapture: stats.useCapture,
-          lastGlError: stats.lastGlError,
-        },
-        layout,
-        projection,
-        textureReady,
-        mountSize: { w: mount.clientWidth, h: mount.clientHeight },
-      });
+    const publishDebug = () => {
+      // no-op
     };
 
     void (async () => {
@@ -377,14 +320,7 @@ export const PanoramaViewer = ({ video, layout, projection, active }: PanoramaVi
 
         frameCount += 1;
         if (frameCount % PREVIEW_EVERY_N_FRAMES === 0) {
-          publishDebug("rendering", painted);
-          try {
-            setPreviewDataUrl(sourceCanvas.toDataURL("image/jpeg", 0.6));
-          } catch (error) {
-            vrWarn("preview toDataURL failed (tainted?)", {
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
+          publishDebug();
         }
 
         camera.rotation.order = "YXZ";

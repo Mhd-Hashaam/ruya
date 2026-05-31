@@ -18,6 +18,7 @@ import {
   editorReplaceAudio,
   editorConvertAv1
 } from "@/core/platform/editorClient";
+import { getCpuInfo, CpuInfo } from "@/core/platform/systemClient";
 
 interface FileUtilitiesPickerProps {
   onBusy: (msg: string | null) => void;
@@ -36,6 +37,13 @@ const AV1_PRESETS = [
   { label: "Archival",     sub: "Maximum efficiency",    preset: 4,  crf: 24 },
 ];
 
+const RESOLUTIONS = [
+  { label: "Keep Original", value: "original" },
+  { label: "Reduce to 1440p", value: "-2:1440" },
+  { label: "Reduce to 1080p", value: "-2:1080" },
+  { label: "Reduce to 720p", value: "-2:720" },
+];
+
 export const FileUtilitiesPicker = ({ onBusy, onExportStart }: FileUtilitiesPickerProps) => {
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const clips = useEditorStore((s) => s.clips);
@@ -46,9 +54,19 @@ export const FileUtilitiesPicker = ({ onBusy, onExportStart }: FileUtilitiesPick
   const av1BtnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const [cpuInfo, setCpuInfo] = useState<CpuInfo | null>(null);
+  const [selectedThreads, setSelectedThreads] = useState<number>(0);
+  const [selectedResolution, setSelectedResolution] = useState<string>("original");
+
+  useEffect(() => {
+    getCpuInfo().then(info => {
+      setCpuInfo(info);
+      setSelectedThreads(Math.max(1, Math.floor(info.logicalThreads / 2)));
+    }).catch(console.error);
+  }, []);
+
   const disabled = !selectedClip;
 
-  // Position the dropdown relative to the button using fixed coordinates
   const openMenu = () => {
     if (av1BtnRef.current) {
       const rect = av1BtnRef.current.getBoundingClientRect();
@@ -57,7 +75,6 @@ export const FileUtilitiesPicker = ({ onBusy, onExportStart }: FileUtilitiesPick
     setShowAv1Menu(true);
   };
 
-  // Close on outside click
   useEffect(() => {
     if (!showAv1Menu) return;
     const handler = (e: MouseEvent) => {
@@ -111,9 +128,16 @@ export const FileUtilitiesPicker = ({ onBusy, onExportStart }: FileUtilitiesPick
     if (!outputPath || Array.isArray(outputPath)) return;
     onExportStart();
     onBusy("Converting to AV1...");
-    try { await editorConvertAv1(selectedClip.sourcePath, outputPath, preset, crf); }
+    try { await editorConvertAv1(selectedClip.sourcePath, outputPath, preset, crf, selectedThreads, selectedResolution); }
     catch (e) { onBusy(e instanceof Error ? e.message : "AV1 conversion failed"); }
   };
+
+  const threadOptions = cpuInfo ? [
+    { label: "Low CPU", value: Math.max(1, Math.floor(cpuInfo.logicalThreads / 4)) },
+    { label: "Balanced", value: Math.max(1, Math.floor(cpuInfo.logicalThreads / 2)) },
+    { label: "High Performance", value: Math.max(1, cpuInfo.logicalThreads - 2) },
+    { label: "Maximum", value: cpuInfo.logicalThreads },
+  ] : [];
 
   return (
     <div className={styles.root}>
@@ -153,13 +177,33 @@ export const FileUtilitiesPicker = ({ onBusy, onExportStart }: FileUtilitiesPick
         <IconChevronDown size={13} className={`${styles.chevron} ${showAv1Menu ? styles.chevronOpen : ""}`} />
       </button>
 
-      {/* Rendered as fixed so it escapes any overflow:hidden parent */}
       {showAv1Menu && !disabled && (
         <div
           ref={menuRef}
           className={styles.dropdownMenu}
           style={{ top: dropdownPos.top, left: dropdownPos.left }}
         >
+          <div className={styles.av1OptionsSection}>
+            <div className={styles.av1OptionGroup}>
+              <label>Thread Usage:</label>
+              <select value={selectedThreads} onChange={e => setSelectedThreads(Number(e.target.value))}>
+                {threadOptions.map(opt => (
+                  <option key={opt.label} value={opt.value}>{opt.label} ({opt.value} Threads)</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.av1OptionGroup}>
+              <label>Resolution:</label>
+              <select value={selectedResolution} onChange={e => setSelectedResolution(e.target.value)}>
+                {RESOLUTIONS.map(opt => (
+                  <option key={opt.label} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className={styles.divider}></div>
+
           {AV1_PRESETS.map((p) => (
             <button
               key={p.label}

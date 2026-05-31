@@ -13,6 +13,7 @@ export function useVideoTextureReady(
 
   useEffect(() => {
     if (!video || !enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReady(false);
       return;
     }

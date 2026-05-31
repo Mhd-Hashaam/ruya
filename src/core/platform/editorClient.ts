@@ -38,6 +38,6 @@ export async function editorReplaceAudio(videoPath: string, audioPath: string, o
   await invoke("editor_replace_audio", { videoPath, audioPath, outputPath });
 }
 
-export async function editorConvertAv1(inputPath: string, outputPath: string, preset: number, crf: number): Promise<void> {
-  await invoke("editor_convert_av1", { inputPath, outputPath, preset, crf });
+export async function editorConvertAv1(inputPath: string, outputPath: string, preset: number, crf: number, threads: number, resolution: string): Promise<void> {
+  await invoke("editor_convert_av1", { inputPath, outputPath, preset, crf, threads, resolution });
 }

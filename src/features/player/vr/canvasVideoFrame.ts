@@ -65,8 +65,8 @@ export function paintVideoFrameToCanvas(
     return { ok: false, source: "none", drawError: "no dimensions", sw: 0, sh: 0 };
   }
 
-  let sx = 0;
-  let sy = 0;
+  const sx = 0;
+  const sy = 0;
   let sw = vw;
   let sh = vh;
 

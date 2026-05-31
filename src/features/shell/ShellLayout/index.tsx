@@ -2,7 +2,7 @@
 
 import styles from "./index.module.css";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 
 import { shellViewForMediaKind } from "@/core/media/shellRouting";
@@ -26,14 +26,14 @@ export const ShellLayout = () => {
   const clearTarget = usePlaybackStore((s) => s.clearTarget);
   const openMediaFromPath = usePlaybackStore((s) => s.openMediaFromPath);
 
-  const navigateForOpenedPath = async (path: string) => {
+  const navigateForOpenedPath = useCallback(async (path: string) => {
     setIsMinimized(false);
     await openMediaFromPath(path);
     const kind = usePlaybackStore.getState().target?.kind;
     if (kind && kind !== "unknown") {
       setActiveView(shellViewForMediaKind(kind) as View);
     }
-  };
+  }, [setIsMinimized, openMediaFromPath]);
 
   // -------------------------------------------------------------------------
   // On startup, check if the app was launched with a file argument from the
@@ -46,7 +46,7 @@ export const ShellLayout = () => {
         void navigateForOpenedPath(path);
       });
     });
-  }, [openMediaFromPath]);
+  }, [navigateForOpenedPath]);
 
   // -------------------------------------------------------------------------
   // Drag and Drop to Play
@@ -65,7 +65,7 @@ export const ShellLayout = () => {
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [openMediaFromPath]);
+  }, [navigateForOpenedPath]);
 
   // When minimizing, automatically switch back to library view if we were in the player
   useEffect(() => {

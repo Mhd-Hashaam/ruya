@@ -1,4 +1,4 @@
-# Ruya Engine - Master Task List
+﻿# Ruya Engine - Master Task List
 
 This is the definitive, step-by-step master checklist for the implementation of the Ruya Multimedia Engine. It decomposes the phases of the `Ruya Masterplan.md` into highly granular, actionable, and testable checklist items.
 
@@ -177,3 +177,11 @@ This is the definitive, step-by-step master checklist for the implementation of 
   - `[ ]` Define a configurable storage budget ceiling (e.g. Max 20GB).
   - `[ ]` Implement Least Recently Used (LRU) file deletion algorithms to purge oldest cache visual assets automatically.
   - `[ ]` **Verification:** Drop a distorted 180-degree VR clip. Confirm 5 visual thumbnail correction options generate within 2 seconds. Verify that adding dummy files beyond the cache ceiling triggers automatic LRU cleanup.
+
+
+
+
+
+
+
+
